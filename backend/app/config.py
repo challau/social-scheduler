@@ -23,15 +23,15 @@ class Settings(BaseSettings):
     # Social Media API Credentials (OAuth Client IDs and Secrets)
     INSTAGRAM_CLIENT_ID: Optional[str] = None
     INSTAGRAM_CLIENT_SECRET: Optional[str] = None
-    INSTAGRAM_REDIRECT_URI: str = "http://localhost:8000/api/social/callback/instagram"
+    INSTAGRAM_REDIRECT_URI: str = "http://localhost:8000/oauth/instagram/callback"
 
     LINKEDIN_CLIENT_ID: Optional[str] = None
     LINKEDIN_CLIENT_SECRET: Optional[str] = None
-    LINKEDIN_REDIRECT_URI: str = "http://localhost:8000/api/social/callback/linkedin"
+    LINKEDIN_REDIRECT_URI: str = "http://localhost:8000/oauth/linkedin/callback"
 
     TWITTER_CLIENT_ID: Optional[str] = None
     TWITTER_CLIENT_SECRET: Optional[str] = None
-    TWITTER_REDIRECT_URI: str = "http://localhost:8000/api/social/callback/twitter"
+    TWITTER_REDIRECT_URI: str = "http://localhost:8000/oauth/twitter/callback"
 
     # SMTP Notifications
     SMTP_HOST: str = "smtp.gmail.com"

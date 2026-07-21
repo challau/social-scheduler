@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from .config import settings
 from .database.session import engine, Base
-from .api import auth, posts, social_accounts, analytics
+from .api import auth, posts, oauth, analytics, media, ai
 from .workers.scheduler_worker import start_scheduler, stop_scheduler
 from .services.storage_service import UPLOAD_DIR
 
@@ -31,10 +31,12 @@ if not os.path.exists(UPLOAD_DIR):
     os.makedirs(UPLOAD_DIR, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
-# Register routes
+# Register routers under their exact non-api prefixes
 app.include_router(auth.router)
+app.include_router(media.router)
+app.include_router(ai.router)
+app.include_router(oauth.router)
 app.include_router(posts.router)
-app.include_router(social_accounts.router)
 app.include_router(analytics.router)
 
 @app.on_event("startup")

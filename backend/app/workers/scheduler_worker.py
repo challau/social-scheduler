@@ -1,5 +1,7 @@
 import datetime
+import json
 import smtplib
+import random
 from email.mime.text import MIMEText
 from sqlalchemy.orm import Session
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -11,9 +13,7 @@ from ..services.twitter_service import twitter_service
 from ..config import settings
 
 def send_email_notification(to_email: str, subject: str, body: str):
-    """
-    Sends an email notification. Falls back to console logs if SMTP not configured.
-    """
+    """Sends email notifications (mocked or real SMTP)"""
     if not settings.SMTP_USERNAME or not settings.SMTP_PASSWORD:
         print(f"[Email Notification Simulator] To: {to_email} | Subject: {subject} | Body: {body}")
         return
@@ -34,13 +34,12 @@ def send_email_notification(to_email: str, subject: str, body: str):
 
 def publish_scheduled_posts():
     """
-    Scans the database for posts scheduled in the past that have not been published yet.
-    Publishes them and updates their status.
+    Checks database for pending scheduled posts and auto-publishes them
+    to selected platforms using the single-row AIGeneration scheme.
     """
     db: Session = SessionLocal()
     try:
         now = datetime.datetime.utcnow()
-        # Find scheduled posts where scheduled_time <= now
         pending_posts = db.query(Post).filter(
             Post.status == "scheduled",
             Post.scheduled_time <= now
@@ -58,29 +57,43 @@ def publish_scheduled_posts():
                 db.commit()
                 continue
 
-            # Notify user via email before publishing
+            # Notify user
             send_email_notification(
                 to_email=user.email,
-                subject=f"SocialFlow AI: Publishing your scheduled post",
-                body=f"Hello {user.name},\n\nYour post scheduled for {post.scheduled_time} is now being published to your connected platforms.\n\nContent:\n{post.content}"
+                subject="SocialFlow AI: Publishing scheduled post",
+                body=f"Hello {user.name},\n\nYour post scheduled for {post.scheduled_time} is now being published to your selected platforms.\n\nContent:\n{post.content}"
             )
 
-            # Get user's connected social accounts
+            # Get social credentials
             accounts = db.query(SocialAccount).filter(SocialAccount.user_id == post.user_id).all()
             account_by_platform = {acc.platform.lower(): acc for acc in accounts}
 
-            # Fetch tailored AI copies
-            generations = db.query(AIGeneration).filter(AIGeneration.post_id == post.id).all()
-            gen_by_platform = {gen.platform.lower(): gen for gen in generations}
+            # Fetch AI generation single row
+            gen = db.query(AIGeneration).filter(AIGeneration.post_id == post.id).first()
+            
+            # Selected targets list
+            target_platforms = post.platforms.split(",") if post.platforms else []
+            if not target_platforms:
+                post.status = "failed"
+                db.commit()
+                continue
 
             publish_success = False
-            published_urls = []
 
             # 1. Instagram
-            if "instagram" in account_by_platform:
+            if "instagram" in target_platforms and "instagram" in account_by_platform:
                 acc = account_by_platform["instagram"]
-                gen = gen_by_platform.get("instagram")
-                caption = f"{gen.caption}\n\n{' '.join(['#' + t for t in json.loads(gen.hashtags)])}" if gen and gen.hashtags else post.content
+                caption = ""
+                if gen:
+                    try:
+                        tags = json.loads(gen.hashtags) if gen.hashtags else []
+                    except:
+                        tags = []
+                    tags_str = " ".join(["#" + t for t in tags])
+                    caption = f"{gen.instagram_caption}\n\n{tags_str}"
+                else:
+                    caption = post.content
+
                 if post.media_url:
                     res = instagram_service.publish_post(
                         access_token=acc.access_token,
@@ -90,13 +103,17 @@ def publish_scheduled_posts():
                     )
                     if res.get("status") == "success":
                         publish_success = True
-                        published_urls.append(res.get("url"))
+                        _seed_analytics(db, post.id, "instagram")
 
             # 2. LinkedIn
-            if "linkedin" in account_by_platform:
+            if "linkedin" in target_platforms and "linkedin" in account_by_platform:
                 acc = account_by_platform["linkedin"]
-                gen = gen_by_platform.get("linkedin")
-                content = f"{gen.caption}\n\nSummary: {gen.summary}" if gen else post.content
+                content = ""
+                if gen:
+                    content = f"{gen.linkedin_caption}\n\nSummary: {gen.summary}"
+                else:
+                    content = post.content
+
                 res = linkedin_service.publish_post(
                     access_token=acc.access_token,
                     content=content,
@@ -104,19 +121,22 @@ def publish_scheduled_posts():
                 )
                 if res.get("status") == "success":
                     publish_success = True
-                    published_urls.append(res.get("url"))
+                    _seed_analytics(db, post.id, "linkedin")
 
             # 3. Twitter
-            if "twitter" in account_by_platform:
+            if "twitter" in target_platforms and "twitter" in account_by_platform:
                 acc = account_by_platform["twitter"]
-                gen = gen_by_platform.get("twitter")
-                import json
-                try:
-                    tags = json.loads(gen.hashtags) if gen and gen.hashtags else []
-                except:
-                    tags = []
-                tags_str = " ".join(["#" + t for t in tags])
-                content = f"{gen.caption}\n\n{tags_str}" if gen else post.content
+                content = ""
+                if gen:
+                    try:
+                        tags = json.loads(gen.hashtags) if gen.hashtags else []
+                    except:
+                        tags = []
+                    tags_str = " ".join(["#" + t for t in tags])
+                    content = f"{gen.twitter_caption}\n\n{tags_str}"
+                else:
+                    content = post.content
+
                 res = twitter_service.publish_post(
                     access_token=acc.access_token,
                     content=content,
@@ -124,21 +144,10 @@ def publish_scheduled_posts():
                 )
                 if res.get("status") == "success":
                     publish_success = True
-                    published_urls.append(res.get("url"))
+                    _seed_analytics(db, post.id, "twitter")
 
-            # Update post status based on publishing outcome
             if publish_success:
                 post.status = "published"
-                # Initialize dummy analytics record so user sees data
-                import random
-                analytics_record = Analytics(
-                    post_id=post.id,
-                    views=random.randint(150, 1500),
-                    likes=random.randint(15, 200),
-                    comments=random.randint(2, 30),
-                    shares=random.randint(1, 15)
-                )
-                db.add(analytics_record)
                 print(f"[Scheduler] Post {post.id} successfully published.")
             else:
                 post.status = "failed"
@@ -147,22 +156,37 @@ def publish_scheduled_posts():
             db.commit()
 
     except Exception as e:
-        print(f"[Scheduler Error] Exception in background publication tick: {e}")
+        print(f"[Scheduler Error] Exception in background publication: {e}")
     finally:
         db.close()
 
-# Background scheduler instance
+def _seed_analytics(db: Session, post_id: int, platform: str):
+    views = random.randint(120, 1400)
+    likes = random.randint(10, 180)
+    comments = random.randint(1, 20)
+    shares = random.randint(1, 10)
+    reach = int(views * 0.85)
+
+    analytics = Analytics(
+        post_id=post_id,
+        platform=platform,
+        views=views,
+        likes=likes,
+        comments=comments,
+        shares=shares,
+        reach=reach
+    )
+    db.add(analytics)
+
 scheduler = BackgroundScheduler()
 
 def start_scheduler():
-    """Starts the background scheduler loop inside the FastAPI application."""
     if not scheduler.running:
         scheduler.add_job(publish_scheduled_posts, 'interval', seconds=10)
         scheduler.start()
         print("[Scheduler] Started APScheduler background worker (10s intervals).")
 
 def stop_scheduler():
-    """Stops the background scheduler."""
     if scheduler.running:
         scheduler.shutdown()
         print("[Scheduler] Stopped APScheduler background worker.")

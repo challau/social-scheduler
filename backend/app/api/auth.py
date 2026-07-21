@@ -3,18 +3,16 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+import bcrypt
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
 from ..database.session import get_db
 from ..database.models import User
 from ..config import settings
 
-# Authentication crypt contexts
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login-form-compatibility", auto_error=False)
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login-form-compatibility", auto_error=False)
 
-router = APIRouter(prefix="/api/auth", tags=["auth"])
+router = APIRouter(prefix="/auth", tags=["auth"])
 
 # Pydantic Schemas
 class UserSignup(BaseModel):
@@ -40,11 +38,17 @@ class ProfileResponse(BaseModel):
 
 # Helper functions
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    pwd_bytes = password.encode('utf-8')
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(pwd_bytes, salt)
+    return hashed.decode('utf-8')
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     try:
-        return pwd_context.verify(plain_password, hashed_password)
+        return bcrypt.checkpw(
+            plain_password.encode('utf-8'),
+            hashed_password.encode('utf-8')
+        )
     except Exception:
         return False
 
