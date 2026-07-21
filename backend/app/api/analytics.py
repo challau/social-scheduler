@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from ..database.session import get_db
-from ..database.models import Post, Analytics, User
+from ..database.models import Post, Analytics, User, PostResult
 from ..api.auth import get_current_user
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
@@ -18,50 +18,33 @@ def get_aggregated_analytics(
     Returns summed up impressions, likes, comments, shares, reach, and rates
     across all published platform campaign channels.
     """
-    user_post_ids = db.query(Post.id).filter(Post.user_id == current_user.id).all()
-    user_post_ids = [pid[0] for pid in user_post_ids]
-
-    if not user_post_ids:
-        return {
-            "total_views": 0,
-            "total_likes": 0,
-            "total_comments": 0,
-            "total_shares": 0,
-            "total_reach": 0,
-            "engagement_rate": 0.0,
-            "total_posts": 0,
-            "scheduled_posts": 0
-        }
-
-    # Total post counts
     total_posts = db.query(func.count(Post.id)).filter(Post.user_id == current_user.id).scalar() or 0
     scheduled_posts = db.query(func.count(Post.id)).filter(Post.user_id == current_user.id, Post.status == "scheduled").scalar() or 0
-    published_posts = db.query(func.count(Post.id)).filter(Post.user_id == current_user.id, Post.status == "published").scalar() or 0
+    published_posts = db.query(func.count(Post.id)).filter(
+        Post.user_id == current_user.id, 
+        Post.status.in_(["posted", "partial_failed"])
+    ).scalar() or 0
 
-    # Engagement summaries
+    # Engagement summaries joined through PostResult
     stats = db.query(
-        func.sum(Analytics.views).label("views"),
+        func.sum(Analytics.reach).label("reach"),
         func.sum(Analytics.likes).label("likes"),
-        func.sum(Analytics.comments).label("comments"),
-        func.sum(Analytics.shares).label("shares"),
-        func.sum(Analytics.reach).label("reach")
-    ).filter(Analytics.post_id.in_(user_post_ids)).first()
+        func.sum(Analytics.comments).label("comments")
+    ).join(PostResult).join(Post).filter(Post.user_id == current_user.id).first()
 
-    views = stats.views or 0
+    reach = stats.reach or 0
     likes = stats.likes or 0
     comments = stats.comments or 0
-    shares = stats.shares or 0
-    reach = stats.reach or 0
 
     engagement_rate = 0.0
-    if views > 0:
-        engagement_rate = round(((likes + comments + shares) / views) * 100, 2)
+    if reach > 0:
+        engagement_rate = round(((likes + comments) / reach) * 100, 2)
 
     return {
-        "total_views": views,
+        "total_views": reach,
         "total_likes": likes,
         "total_comments": comments,
-        "total_shares": shares,
+        "total_shares": 0,
         "total_reach": reach,
         "engagement_rate": engagement_rate,
         "total_posts": total_posts,
@@ -74,7 +57,7 @@ def get_analytics_history(current_user: User = Depends(get_current_user), db: Se
     """GET /analytics/history"""
     history_data = []
     today = datetime.date.today()
-    posts = db.query(Post).filter(Post.user_id == current_user.id, Post.status == "published").all()
+    posts = db.query(Post).filter(Post.user_id == current_user.id, Post.status.in_(["posted", "partial_failed"])).all()
     
     for i in range(6, -1, -1):
         day = today - datetime.timedelta(days=i)
@@ -100,18 +83,38 @@ def get_analytics_history(current_user: User = Depends(get_current_user), db: Se
 @router.get("/breakdown")
 def get_platform_breakdown(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """GET /analytics/breakdown"""
-    posts = db.query(Post).filter(Post.user_id == current_user.id, Post.status == "published").all()
-    
-    if not posts:
-        return [
-            {"platform": "Instagram", "posts": 0, "views": 0, "color": "#E1306C"},
-            {"platform": "LinkedIn", "posts": 0, "views": 0, "color": "#0077B5"},
-            {"platform": "Twitter", "posts": 0, "views": 0, "color": "#1DA1F2"}
-        ]
+    stats = db.query(
+        Analytics.platform,
+        func.count(PostResult.id).label("post_count"),
+        func.sum(Analytics.reach).label("reach")
+    ).join(PostResult).join(Post).filter(Post.user_id == current_user.id).group_by(Analytics.platform).all()
 
-    post_count = len(posts)
-    return [
-        {"platform": "Instagram", "posts": int(post_count * 0.4) or 1, "views": int(post_count * 450), "color": "#E1306C"},
-        {"platform": "LinkedIn", "posts": int(post_count * 0.3) or 1, "views": int(post_count * 380), "color": "#0077B5"},
-        {"platform": "Twitter", "posts": int(post_count * 0.3) or 1, "views": int(post_count * 520), "color": "#1DA1F2"}
-    ]
+    breakdown = []
+    colors = {
+        "instagram": "#E1306C",
+        "linkedin": "#0077B5",
+        "twitter": "#1DA1F2"
+    }
+    
+    platforms_seen = set()
+    for s in stats:
+        plat = s.platform.lower()
+        platforms_seen.add(plat)
+        breakdown.append({
+            "platform": s.platform.capitalize(),
+            "posts": s.post_count or 0,
+            "views": s.reach or 0,
+            "color": colors.get(plat, "#6366F1")
+        })
+
+    # Default elements to keep UI looking professional even if database is empty
+    for plat in ["instagram", "linkedin", "twitter"]:
+        if plat not in platforms_seen:
+            breakdown.append({
+                "platform": plat.capitalize(),
+                "posts": 0,
+                "views": 0,
+                "color": colors.get(plat, "#6366F1")
+            })
+
+    return breakdown

@@ -1,5 +1,5 @@
 import datetime
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, JSON
 from sqlalchemy.orm import relationship
 from .session import Base
 
@@ -24,9 +24,10 @@ class SocialAccount(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     platform = Column(String(50), nullable=False) # "instagram", "linkedin", "twitter"
-    access_token = Column(Text, nullable=False)
-    refresh_token = Column(Text, nullable=True)
     username = Column(String(100), nullable=True)
+    access_token = Column(Text, nullable=False) # Encrypted at rest
+    refresh_token = Column(Text, nullable=True) # Encrypted at rest
+    token_expires_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
 
     # Relationships
@@ -44,6 +45,7 @@ class Media(Base):
 
     # Relationships
     user = relationship("User", back_populates="media")
+    posts = relationship("Post", back_populates="media")
 
 
 class Post(Base):
@@ -51,17 +53,18 @@ class Post(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    content = Column(Text, nullable=False)
-    media_url = Column(Text, nullable=True)
-    platforms = Column(String(255), nullable=True) # comma separated e.g. "instagram,linkedin"
-    status = Column(String(50), default="draft", nullable=False) # "draft", "scheduled", "published", "failed"
-    scheduled_time = Column(DateTime, nullable=True)
+    media_id = Column(Integer, ForeignKey("media.id", ondelete="SET NULL"), nullable=True)
+    content = Column(Text, nullable=True) # Retained for prompt / draft copy backward compatibility
+    platforms = Column(JSON, nullable=False) # JSON array of targets e.g. ["instagram", "linkedin"]
+    status = Column(String(50), default="draft", nullable=False) # draft/scheduled/publishing/posted/partial_failed/failed
+    scheduled_for = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
 
     # Relationships
     user = relationship("User", back_populates="posts")
+    media = relationship("Media", back_populates="posts")
     ai_generation = relationship("AIGeneration", back_populates="post", uselist=False, cascade="all, delete-orphan")
-    analytics = relationship("Analytics", back_populates="post", cascade="all, delete-orphan")
+    results = relationship("PostResult", back_populates="post", cascade="all, delete-orphan")
 
 
 class AIGeneration(Base):
@@ -74,22 +77,37 @@ class AIGeneration(Base):
     linkedin_caption = Column(Text, nullable=True)
     twitter_caption = Column(Text, nullable=True)
     hashtags = Column(Text, nullable=True) # JSON array serialized as string
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
 
     # Relationships
     post = relationship("Post", back_populates="ai_generation")
+
+
+class PostResult(Base):
+    __tablename__ = "post_results"
+
+    id = Column(Integer, primary_key=True, index=True)
+    post_id = Column(Integer, ForeignKey("posts.id", ondelete="CASCADE"), nullable=False)
+    platform = Column(String(50), nullable=False) # "instagram", "linkedin", "twitter"
+    status = Column(String(50), nullable=False) # "success" or "failed"
+    error_message = Column(Text, nullable=True)
+    published_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+
+    # Relationships
+    post = relationship("Post", back_populates="results")
+    analytics = relationship("Analytics", back_populates="post_result", cascade="all, delete-orphan")
 
 
 class Analytics(Base):
     __tablename__ = "analytics"
 
     id = Column(Integer, primary_key=True, index=True)
-    post_id = Column(Integer, ForeignKey("posts.id", ondelete="CASCADE"), nullable=False)
+    post_result_id = Column(Integer, ForeignKey("post_results.id", ondelete="CASCADE"), nullable=False)
     platform = Column(String(50), nullable=False) # "instagram", "linkedin", "twitter"
+    reach = Column(Integer, default=0, nullable=False)
     likes = Column(Integer, default=0, nullable=False)
     comments = Column(Integer, default=0, nullable=False)
-    shares = Column(Integer, default=0, nullable=False)
-    views = Column(Integer, default=0, nullable=False)
-    reach = Column(Integer, default=0, nullable=False)
+    recorded_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
 
     # Relationships
-    post = relationship("Post", back_populates="analytics")
+    post_result = relationship("PostResult", back_populates="analytics")

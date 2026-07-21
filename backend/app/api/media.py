@@ -18,6 +18,16 @@ async def upload_media_file(
     Uploads a file to Cloudinary (or local folder fallback),
     saves the transaction metadata in the Media table, and returns details.
     """
+    content_type = file.content_type or ""
+    is_image = content_type.startswith("image/")
+    is_video = content_type.startswith("video/")
+
+    if not (is_image or is_video):
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported file type. Only images and videos are allowed."
+        )
+
     try:
         # 1. Run upload through the storage service
         upload_result = await storage_service.upload_file(file)
@@ -26,7 +36,7 @@ async def upload_media_file(
         media_record = Media(
             user_id=current_user.id,
             file_url=upload_result["url"],
-            file_type=upload_result["media_type"]
+            file_type="video" if is_video else "image"
         )
         db.add(media_record)
         db.commit()
@@ -34,6 +44,7 @@ async def upload_media_file(
         
         return {
             "id": media_record.id,
+            "media_id": media_record.id,
             "file_url": media_record.file_url,
             "file_type": media_record.file_type,
             "thumbnail_url": upload_result.get("thumbnail_url", media_record.file_url)

@@ -1,3 +1,7 @@
+import io
+import datetime
+from app.database.models import SocialAccount, Post
+
 def test_create_and_get_posts(client):
     # Register and login to get JWT
     signup_res = client.post(
@@ -39,7 +43,7 @@ def test_create_and_get_posts(client):
 def test_ai_generate_endpoint(client):
     signup_res = client.post(
         "/auth/signup",
-        json={"name": "Alice Tester", "email": "alice@example.com", "password": "securepassword123"}
+        json={"name": "Alice Tester", "email": "alice_test_ai@example.com", "password": "securepassword123"}
     )
     token = signup_res.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
@@ -63,7 +67,7 @@ def test_ai_generate_endpoint(client):
 def test_publish_without_accounts_fails(client):
     signup_res = client.post(
         "/auth/signup",
-        json={"name": "Alice Tester", "email": "alice@example.com", "password": "securepassword123"}
+        json={"name": "Alice Tester", "email": "alice_no_acc@example.com", "password": "securepassword123"}
     )
     token = signup_res.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
@@ -87,3 +91,57 @@ def test_publish_without_accounts_fails(client):
     )
     assert res.status_code == 400
     assert "is not connected" in res.json()["detail"]
+
+def test_publish_partial_failure(client, db):
+    # Register/login
+    signup_res = client.post(
+        "/auth/signup",
+        json={"name": "Partial Tester", "email": "partial@example.com", "password": "securepassword123"}
+    )
+    token = signup_res.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Connect instagram & linkedin via login simulator
+    client.get("/oauth/instagram/login?token=" + token, follow_redirects=False)
+    client.get("/oauth/linkedin/login?token=" + token, follow_redirects=False)
+
+    # Fetch the LinkedIn social account and make it raise refresh failure
+    linkedin_acc = db.query(SocialAccount).filter(SocialAccount.platform == "linkedin").first()
+    assert linkedin_acc is not None
+    linkedin_acc.refresh_token = None
+    linkedin_acc.token_expires_at = datetime.datetime.utcnow() - datetime.timedelta(hours=1)
+    db.commit()
+
+    # Create post campaign targeting BOTH instagram and linkedin
+    create_res = client.post(
+        "/posts/create",
+        json={
+            "content": "Campaign content",
+            "platforms": ["instagram", "linkedin"],
+            "status": "draft"
+        },
+        headers=headers
+    )
+    post_id = create_res.json()["post_id"]
+
+    # Publish campaign. This will run successfully for Instagram and fail for LinkedIn.
+    res = client.post(
+        "/posts/publish",
+        json={"post_id": post_id},
+        headers=headers
+    )
+    assert res.status_code == 200
+    results = res.json()
+    assert len(results) == 2
+    
+    # Assert one success, one failed
+    insta_res = next(r for r in results if r["platform"] == "instagram")
+    link_res = next(r for r in results if r["platform"] == "linkedin")
+    
+    assert insta_res["status"] == "success"
+    assert link_res["status"] == "failed"
+    assert link_res["error"] == "reconnect account"
+
+    # Verify that post status in the DB is set to partial_failed
+    post_db = db.query(Post).filter(Post.id == post_id).first()
+    assert post_db.status == "partial_failed"
