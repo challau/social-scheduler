@@ -28,12 +28,18 @@ def send_email_notification(to_email: str, subject: str, body: str):
     except Exception as e:
         print(f"Failed to send email notification: {e}")
 
-def publish_scheduled_posts():
+def publish_scheduled_posts(db: Session = None):
     """
     Checks database for pending scheduled posts and auto-publishes them
     using the unified post publisher.
+
+    An optional `db` session can be injected (e.g. from tests) so the
+    scheduler uses the same in-memory SQLite session rather than opening
+    a fresh connection to the production database.
     """
-    db: Session = SessionLocal()
+    external_db = db is not None
+    if not external_db:
+        db = SessionLocal()
     try:
         now = datetime.datetime.utcnow()
         pending_posts = db.query(Post).filter(
@@ -65,8 +71,15 @@ def publish_scheduled_posts():
 
     except Exception as e:
         print(f"[Scheduler Error] Exception in background publication: {e}")
+        try:
+            import sentry_sdk
+            sentry_sdk.capture_exception(e)
+        except ImportError:
+            pass
     finally:
-        db.close()
+        # Only close the session if we opened it ourselves
+        if not external_db:
+            db.close()
 
 scheduler = BackgroundScheduler()
 

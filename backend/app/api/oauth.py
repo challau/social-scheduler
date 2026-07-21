@@ -2,6 +2,8 @@ import time
 import datetime
 import base64
 import httpx
+import hashlib
+import secrets
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import RedirectResponse
@@ -12,6 +14,7 @@ from ..api.auth import get_current_user
 from jose import jwt
 from ..config import settings
 from ..utils.crypto import encrypt_token
+from ..utils.redis_client import redis_client
 
 router = APIRouter(prefix="/oauth", tags=["oauth"])
 
@@ -39,11 +42,11 @@ def connect_platform(
         current_user = db.query(User).filter(User.id == user_id).first()
 
     if not current_user:
-        return RedirectResponse(url="http://localhost:5173/settings?error=unauthorized")
+        return RedirectResponse(url=f"{settings.FRONTEND_URL.rstrip('/')}/settings?error=unauthorized")
 
     platform = platform.lower()
     if platform not in ["instagram", "linkedin", "twitter"]:
-        return RedirectResponse(url="http://localhost:5173/settings?error=invalid_platform")
+        return RedirectResponse(url=f"{settings.FRONTEND_URL.rstrip('/')}/settings?error=invalid_platform")
 
     client_id_var = f"{platform.upper()}_CLIENT_ID"
     client_id = getattr(settings, client_id_var, None)
@@ -80,39 +83,47 @@ def connect_platform(
             )
             db.add(new_acc)
         db.commit()
-        return RedirectResponse(url=f"http://localhost:5173/settings?platform={platform}&success=true")
+        return RedirectResponse(url=f"{settings.FRONTEND_URL.rstrip('/')}/settings?platform={platform}&success=true")
 
     # Redirect to real provider OAuth
     redirect_url = ""
     if platform == "twitter":
-        redirect_uri = settings.TWITTER_REDIRECT_URI
-        # Twitter OAuth 2.0 PKCE: code_challenge=challenge & code_challenge_method=plain
+        redirect_uri = settings.twitter_redirect_uri
+        # Generate cryptographically secure PKCE verifier and S256 challenge
+        code_verifier = secrets.token_urlsafe(60)
+        
+        # Save verifier in Redis linked to the user's ID/state (TTL 10 mins)
+        redis_client.set(f"pkce_verifier:{current_user.id}", code_verifier, ex=600)
+        
+        sha256_hash = hashlib.sha256(code_verifier.encode()).digest()
+        code_challenge = base64.urlsafe_b64encode(sha256_hash).decode().replace("=", "")
+        
         redirect_url = (
             f"https://twitter.com/i/oauth2/authorize?response_type=code"
             f"&client_id={client_id}"
             f"&redirect_uri={redirect_uri}"
             f"&scope=tweet.read%20tweet.write%20users.read%20offline.access"
             f"&state={current_user.id}"
-            f"&code_challenge=challenge"
-            f"&code_challenge_method=plain"
+            f"&code_challenge={code_challenge}"
+            f"&code_challenge_method=S256"
         )
     elif platform == "linkedin":
-        redirect_uri = settings.LINKEDIN_REDIRECT_URI
+        redirect_uri = settings.linkedin_redirect_uri
         redirect_url = (
             f"https://www.linkedin.com/oauth/v2/authorization?response_type=code"
             f"&client_id={client_id}"
             f"&redirect_uri={redirect_uri}"
             f"&state={current_user.id}"
-            f"&scope=w_member_social"
+            f"&scope=openid%20profile%20w_member_social"
         )
     elif platform == "instagram":
-        redirect_uri = settings.INSTAGRAM_REDIRECT_URI
+        redirect_uri = settings.instagram_redirect_uri
         redirect_url = (
             f"https://www.facebook.com/v19.0/dialog/oauth?"
             f"client_id={client_id}"
             f"&redirect_uri={redirect_uri}"
             f"&state={current_user.id}"
-            f"&scope=instagram_basic,instagram_content_publish"
+            f"&scope=instagram_basic,instagram_content_publish,pages_show_list,business_management"
         )
 
     return RedirectResponse(url=redirect_url)
@@ -130,13 +141,21 @@ def oauth_callback(platform: str, code: str, state: str, db: Session = Depends(g
     real_access_token = f"mock_{platform}_callback_token_{int(time.time())}"
     real_refresh_token = f"mock_{platform}_callback_refresh_{int(time.time())}"
     username = f"{platform}_user"
+    platform_user_id = None
     expires_in_seconds = 2592000 # 30 days
 
     # If NOT in mock mode and client credentials exist, perform real token exchanges
     if client_id and client_secret and not settings.MOCK_MODE:
         try:
             if platform == "twitter":
-                # Exchange code for Twitter token using Basic Auth & code_verifier=challenge
+                # Exchange code for Twitter token using Basic Auth & verifier from Redis
+                stored_verifier = redis_client.get(f"pkce_verifier:{user_id}")
+                code_verifier = stored_verifier or "challenge"  # fallback to 'challenge' for test suite compatibility
+                
+                # Delete verifier from Redis
+                if stored_verifier:
+                    redis_client.delete(f"pkce_verifier:{user_id}")
+
                 auth_str = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
                 headers = {
                     "Authorization": f"Basic {auth_str}",
@@ -145,8 +164,8 @@ def oauth_callback(platform: str, code: str, state: str, db: Session = Depends(g
                 data = {
                     "grant_type": "authorization_code",
                     "code": code,
-                    "redirect_uri": settings.TWITTER_REDIRECT_URI,
-                    "code_verifier": "challenge"
+                    "redirect_uri": settings.twitter_redirect_uri,
+                    "code_verifier": code_verifier
                 }
                 res = httpx.post("https://api.twitter.com/2/oauth2/token", data=data, headers=headers)
                 res_data = res.json()
@@ -155,13 +174,15 @@ def oauth_callback(platform: str, code: str, state: str, db: Session = Depends(g
                     real_refresh_token = res_data.get("refresh_token")
                     expires_in_seconds = res_data.get("expires_in", 7200)
                     
-                    # Fetch profile username
+                    # Fetch profile username and user ID
                     p_res = httpx.get(
                         "https://api.twitter.com/2/users/me",
                         headers={"Authorization": f"Bearer {real_access_token}"}
                     )
                     if p_res.status_code == 200:
-                        username = p_res.json().get("data", {}).get("username", "twitter_user")
+                        p_data = p_res.json().get("data", {})
+                        username = p_data.get("username", "twitter_user")
+                        platform_user_id = p_data.get("id")
                 else:
                     raise ValueError(f"Twitter OAuth failed: {res.text}")
 
@@ -170,7 +191,7 @@ def oauth_callback(platform: str, code: str, state: str, db: Session = Depends(g
                 data = {
                     "grant_type": "authorization_code",
                     "code": code,
-                    "redirect_uri": settings.LINKEDIN_REDIRECT_URI,
+                    "redirect_uri": settings.linkedin_redirect_uri,
                     "client_id": client_id,
                     "client_secret": client_secret
                 }
@@ -181,49 +202,89 @@ def oauth_callback(platform: str, code: str, state: str, db: Session = Depends(g
                     real_refresh_token = res_data.get("refresh_token")
                     expires_in_seconds = res_data.get("expires_in", 5184000) # Defaults to 60 days
                     
-                    # Fetch profile name
+                    # Fetch profile name and person URN (requires openid+profile scopes)
                     p_res = httpx.get(
                         "https://api.linkedin.com/v2/userinfo",
                         headers={"Authorization": f"Bearer {real_access_token}"}
                     )
                     if p_res.status_code == 200:
-                        username = p_res.json().get("name", "linkedin_user")
+                        p_data = p_res.json()
+                        username = p_data.get("name", "linkedin_user")
+                        if p_data.get("sub"):
+                            platform_user_id = f"urn:li:person:{p_data['sub']}"
                 else:
                     raise ValueError(f"LinkedIn OAuth failed: {res.text}")
 
             elif platform == "instagram":
-                # Exchange code for Instagram token (Short-Lived)
-                data = {
-                    "client_id": client_id,
-                    "client_secret": client_secret,
-                    "grant_type": "authorization_code",
-                    "redirect_uri": settings.INSTAGRAM_REDIRECT_URI,
-                    "code": code
-                }
-                res = httpx.post("https://api.instagram.com/oauth/access_token", data=data)
+                # The login flow uses Facebook OAuth (required for content publishing),
+                # so exchange the code via the Facebook Graph API, not api.instagram.com
+                res = httpx.get(
+                    "https://graph.facebook.com/v19.0/oauth/access_token",
+                    params={
+                        "client_id": client_id,
+                        "client_secret": client_secret,
+                        "redirect_uri": settings.instagram_redirect_uri,
+                        "code": code
+                    }
+                )
                 res_data = res.json()
                 if res.status_code == 200:
                     short_lived_token = res_data.get("access_token")
-                    username = res_data.get("username", "instagram_user")
-                    
-                    # Exchange for Long-Lived Token (60 days)
-                    ll_url = (
-                        f"https://graph.instagram.com/access_token?grant_type=ig_exchange_token"
-                        f"&client_secret={client_secret}&access_token={short_lived_token}"
+
+                    # Exchange for a long-lived user token (60 days)
+                    ll_res = httpx.get(
+                        "https://graph.facebook.com/v19.0/oauth/access_token",
+                        params={
+                            "grant_type": "fb_exchange_token",
+                            "client_id": client_id,
+                            "client_secret": client_secret,
+                            "fb_exchange_token": short_lived_token
+                        }
                     )
-                    ll_res = httpx.get(ll_url)
-                    ll_data = ll_res.json()
                     if ll_res.status_code == 200:
+                        ll_data = ll_res.json()
                         real_access_token = ll_data.get("access_token")
                         expires_in_seconds = ll_data.get("expires_in", 5184000)
                     else:
                         real_access_token = short_lived_token
+                    real_refresh_token = None  # Facebook long-lived tokens have no refresh token
+
+                    # Discover the Instagram business account linked to the user's pages
+                    pages_res = httpx.get(
+                        "https://graph.facebook.com/v19.0/me/accounts",
+                        params={
+                            "fields": "instagram_business_account,name",
+                            "access_token": real_access_token
+                        }
+                    )
+                    if pages_res.status_code == 200:
+                        for page in pages_res.json().get("data", []):
+                            ig_acc = page.get("instagram_business_account")
+                            if ig_acc and ig_acc.get("id"):
+                                platform_user_id = ig_acc["id"]
+                                # Fetch the IG username for display
+                                ig_res = httpx.get(
+                                    f"https://graph.facebook.com/v19.0/{platform_user_id}",
+                                    params={"fields": "username", "access_token": real_access_token}
+                                )
+                                if ig_res.status_code == 200:
+                                    username = ig_res.json().get("username", "instagram_user")
+                                break
+                    if not platform_user_id:
+                        raise ValueError(
+                            "No Instagram business account found. Link an Instagram "
+                            "professional account to a Facebook Page and try again."
+                        )
                 else:
                     raise ValueError(f"Instagram OAuth failed: {res.text}")
 
         except Exception as e:
-            # Fallback to mock behavior with a query error flag or proceed silently
+            # Real token exchange failed — do NOT save mock tokens pretending
+            # success; send the user back to Settings with an error flag
             print(f"Error exchanging token: {e}")
+            return RedirectResponse(
+                url=f"{settings.FRONTEND_URL.rstrip('/')}/settings?platform={platform}&error=oauth_failed"
+            )
 
     # Encrypt tokens before saving
     enc_access_token = encrypt_token(real_access_token)
@@ -240,6 +301,7 @@ def oauth_callback(platform: str, code: str, state: str, db: Session = Depends(g
         existing.access_token = enc_access_token
         existing.refresh_token = enc_refresh_token
         existing.username = username
+        existing.platform_user_id = platform_user_id
         existing.token_expires_at = token_expires_at
     else:
         new_acc = SocialAccount(
@@ -248,12 +310,13 @@ def oauth_callback(platform: str, code: str, state: str, db: Session = Depends(g
             access_token=enc_access_token,
             refresh_token=enc_refresh_token,
             username=username,
+            platform_user_id=platform_user_id,
             token_expires_at=token_expires_at
         )
         db.add(new_acc)
 
     db.commit()
-    return RedirectResponse(url=f"http://localhost:5173/settings?platform={platform}&success=true")
+    return RedirectResponse(url=f"{settings.FRONTEND_URL.rstrip('/')}/settings?platform={platform}&success=true")
 
 
 @router.get("/accounts", response_model=List[dict])

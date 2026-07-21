@@ -12,12 +12,18 @@ from ..services.publisher import publish_post_campaign
 router = APIRouter(prefix="/posts", tags=["posts"])
 
 # Pydantic Schemas
+class ContentScoreInput(BaseModel):
+    creativity: int
+    engagement_prediction: int
+    seo_score: int
+
 class AIGenerationInput(BaseModel):
     summary: Optional[str] = None
     instagram_caption: Optional[str] = None
     linkedin_caption: Optional[str] = None
     twitter_caption: Optional[str] = None
     hashtags: List[str] = []
+    content_score: Optional[ContentScoreInput] = None
 
 class PostCreateRequest(BaseModel):
     content: str
@@ -79,6 +85,7 @@ def create_post(
     ai_link = req.content
     ai_twit = req.content
     ai_tags = []
+    ai_score_str = None
 
     if req.ai_generation:
         ai_summary = req.ai_generation.summary or ai_summary
@@ -86,6 +93,12 @@ def create_post(
         ai_link = req.ai_generation.linkedin_caption or ai_link
         ai_twit = req.ai_generation.twitter_caption or ai_twit
         ai_tags = req.ai_generation.hashtags
+        if req.ai_generation.content_score:
+            ai_score_str = json.dumps({
+                "creativity": req.ai_generation.content_score.creativity,
+                "engagement_prediction": req.ai_generation.content_score.engagement_prediction,
+                "seo_score": req.ai_generation.content_score.seo_score
+            })
 
     ai_gen = AIGeneration(
         post_id=new_post.id,
@@ -93,7 +106,8 @@ def create_post(
         instagram_caption=ai_insta,
         linkedin_caption=ai_link,
         twitter_caption=ai_twit,
-        hashtags=json.dumps(ai_tags)
+        hashtags=json.dumps(ai_tags),
+        content_score_json=ai_score_str
     )
     db.add(ai_gen)
     db.commit()
@@ -123,12 +137,17 @@ def get_posts_history(
                 tags = json.loads(g.hashtags) if g.hashtags else []
             except:
                 tags = []
+            try:
+                scores = json.loads(g.content_score_json) if g.content_score_json else None
+            except:
+                scores = None
             ai_data = {
                 "summary": g.summary,
                 "instagram_caption": g.instagram_caption,
                 "linkedin_caption": g.linkedin_caption,
                 "twitter_caption": g.twitter_caption,
-                "hashtags": tags
+                "hashtags": tags,
+                "content_score": scores
             }
             content_text = post.content or g.summary or g.instagram_caption or ""
 
@@ -183,14 +202,20 @@ def publish_post_immediately(
     accounts = db.query(SocialAccount).filter(SocialAccount.user_id == current_user.id).all()
     account_by_platform = {acc.platform.lower(): acc for acc in accounts}
 
-    # Verify connection fast if none connected
     target_platforms = post.platforms
     if not target_platforms:
         raise HTTPException(status_code=400, detail="No publishing platforms selected for this post.")
 
-    for plat in target_platforms:
-        if plat.lower() not in account_by_platform:
-            raise HTTPException(status_code=400, detail=f"Platform '{plat}' is not connected. Link your profile in Settings.")
+    # Fail fast only when NONE of the targets are connected. If some are
+    # connected, proceed — the publisher records a per-platform failure for
+    # the missing ones while the rest still publish (partial success).
+    connected_targets = [p for p in target_platforms if p.lower() in account_by_platform]
+    if not connected_targets:
+        missing = ", ".join(f"'{p}'" for p in target_platforms)
+        raise HTTPException(
+            status_code=400,
+            detail=f"Platform {missing} is not connected. Link your profile in Settings."
+        )
 
     # Call campaign publisher service
     results = publish_post_campaign(db, post.id)

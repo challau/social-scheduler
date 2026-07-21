@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import DashboardLayout from "../components/DashboardLayout";
+import { API_URL } from "../config";
 import { 
   FileText, 
   Calendar, 
@@ -55,19 +56,19 @@ export default function Dashboard() {
       const headers: Record<string, string> = token ? { "Authorization": `Bearer ${token}` } : {};
       try {
         // Fetch analytics overview
-        const resStats = await fetch("http://localhost:8000/analytics", { headers });
+        const resStats = await fetch(`${API_URL}/analytics`, { headers });
         const dataStats = await resStats.json();
         
         // Fetch recent posts
-        const resPosts = await fetch("http://localhost:8000/posts", { headers });
+        const resPosts = await fetch(`${API_URL}/posts`, { headers });
         const dataPosts = await resPosts.json();
 
         // Fetch connected accounts
-        const resAcc = await fetch("http://localhost:8000/oauth/accounts", { headers });
+        const resAcc = await fetch(`${API_URL}/oauth/accounts`, { headers });
         const dataAcc = await resAcc.json();
 
         // Fetch history for graph
-        const resHist = await fetch("http://localhost:8000/analytics/history", { headers });
+        const resHist = await fetch(`${API_URL}/analytics/history`, { headers });
         const dataHist = await resHist.json();
 
         if (resStats.ok && resPosts.ok) {

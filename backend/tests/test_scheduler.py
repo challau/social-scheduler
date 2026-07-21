@@ -12,7 +12,9 @@ def test_scheduler_picks_up_and_publishes(db):
     conn = SocialAccount(
         user_id=user.id,
         platform="linkedin",
-        access_token=encrypt_token("some_token"),
+        # mock_-prefixed token exercises the sandbox publish path; real-looking
+        # tokens now hit the actual LinkedIn API and report honest failures
+        access_token=encrypt_token("mock_linkedin_token"),
         token_expires_at=datetime.datetime.utcnow() + datetime.timedelta(days=1),
         username="sched_linkedin"
     )
@@ -39,8 +41,8 @@ def test_scheduler_picks_up_and_publishes(db):
     db.add(ai_gen)
     db.commit()
 
-    # 3. Trigger scheduler task manually
-    publish_scheduled_posts()
+    # 3. Trigger scheduler task manually with the test DB session
+    publish_scheduled_posts(db=db)
 
     # 4. Assertions
     db.refresh(post)

@@ -10,6 +10,7 @@ class User(Base):
     name = Column(String(100), nullable=False)
     email = Column(String(150), unique=True, index=True, nullable=False)
     password_hash = Column(String(255), nullable=False)
+    brand_voice = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
 
     # Relationships
@@ -25,6 +26,9 @@ class SocialAccount(Base):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     platform = Column(String(50), nullable=False) # "instagram", "linkedin", "twitter"
     username = Column(String(100), nullable=True)
+    # Platform-side identity needed for publishing: Instagram business account ID,
+    # LinkedIn person URN (urn:li:person:xxx), or Twitter user ID
+    platform_user_id = Column(String(255), nullable=True)
     access_token = Column(Text, nullable=False) # Encrypted at rest
     refresh_token = Column(Text, nullable=True) # Encrypted at rest
     token_expires_at = Column(DateTime, nullable=True)
@@ -77,6 +81,7 @@ class AIGeneration(Base):
     linkedin_caption = Column(Text, nullable=True)
     twitter_caption = Column(Text, nullable=True)
     hashtags = Column(Text, nullable=True) # JSON array serialized as string
+    content_score_json = Column(Text, nullable=True) # JSON object serialized as string containing creativity, engagement, seo_score
     created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
 
     # Relationships
@@ -111,3 +116,42 @@ class Analytics(Base):
 
     # Relationships
     post_result = relationship("PostResult", back_populates="analytics")
+
+
+class Plan(Base):
+    __tablename__ = "plans"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(50), unique=True, nullable=False) # "free", "pro"
+    ai_limit = Column(Integer, default=10, nullable=False) # 10 generations per month
+    price_monthly = Column(Integer, default=0, nullable=False) # In cents, e.g. 0 or 2900 ($29)
+
+
+class Subscription(Base):
+    __tablename__ = "subscriptions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    plan_id = Column(Integer, ForeignKey("plans.id"), nullable=False)
+    stripe_subscription_id = Column(String(100), nullable=True)
+    status = Column(String(50), nullable=False) # "active", "canceled", "incomplete"
+    current_period_end = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+
+    # Relationships
+    user = relationship("User")
+    plan = relationship("Plan")
+
+
+class Payment(Base):
+    __tablename__ = "payments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    stripe_payment_id = Column(String(100), nullable=False)
+    amount = Column(Integer, nullable=False) # In cents
+    status = Column(String(50), nullable=False) # "succeeded", "failed"
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+
+    # Relationships
+    user = relationship("User")

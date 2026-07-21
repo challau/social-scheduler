@@ -4,7 +4,7 @@ services:
   db:
     image: postgres:15-alpine
     container_name: socialflow_db
-    restart: always
+    restart: unless-stopped
     environment:
       POSTGRES_USER: socialflow_user
       POSTGRES_PASSWORD: socialflow_password
@@ -13,33 +13,61 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U socialflow_user -d socialflow_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:alpine
     container_name: socialflow_redis
-    restart: always
+    restart: unless-stopped
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   backend:
     build: ./backend
     container_name: socialflow_backend
-    restart: always
-    ports:
-      - "8000:8000"
+    restart: unless-stopped
     environment:
       - DATABASE_URL=postgresql://socialflow_user:socialflow_password@db:5432/socialflow_db
-      - REDIS_URL=redis://redis:6379/0
+      - REDIS_URL=redis://socialflow_redis:6379/0
       - SECRET_KEY=super_secret_social_flow_ai_key_change_me
       - ALGORITHM=HS256
       - MOCK_MODE=false
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     volumes:
       - ./uploads:/workspace/uploads
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8000/\")'"]
+      interval: 15s
+      timeout: 10s
+      retries: 3
+
+  nginx:
+    image: nginx:alpine
+    container_name: socialflow_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      # - "443:443" # Uncomment in production for HTTPS
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./uploads:/workspace/uploads:ro
+    depends_on:
+      - backend
 
 volumes:
   postgres_data:

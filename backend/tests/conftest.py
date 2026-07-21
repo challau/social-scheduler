@@ -6,6 +6,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.main import app
 from app.database.session import Base, get_db
+from app.middleware import rate_limiter
 
 # Create an in-memory SQLite database for fast, isolated test runs
 SQLALCHEMY_DATABASE_URL = "sqlite://"
@@ -35,6 +36,10 @@ def db():
 
 @pytest.fixture(scope="function")
 def client(db):
+    # Reset the in-memory rate limiter so per-test request counts don't
+    # accumulate across the suite and trip the /auth limits (429s)
+    rate_limiter._window.clear()
+
     # Override standard DB dependency to use the isolated test DB session
     def override_get_db():
         try:

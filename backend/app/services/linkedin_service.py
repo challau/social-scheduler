@@ -8,16 +8,20 @@ class LinkedInService:
         Publishes a post to LinkedIn UGC Post API.
         If details are missing, falls back to a sandbox simulation.
         """
-        # Parse or default person_urn. If person_urn is not set, we try to fetch it using /v2/userinfo
-        if not person_urn and access_token and not access_token.startswith("mock_"):
+        # Simulate only for mock tokens (no real credentials connected)
+        if not access_token or access_token.startswith("mock_"):
+            return self._publish_mock(content, media_url)
+
+        # Resolve person URN if not supplied by caller (stored at OAuth time)
+        if not person_urn:
             try:
                 person_urn = self._fetch_person_urn(access_token)
             except Exception as e:
-                print(f"Failed to fetch LinkedIn profile URN: {e}")
-
-        # Fallback to mock if details are mock tokens
-        if not access_token or access_token.startswith("mock_") or not person_urn:
-            return self._publish_mock(content, media_url)
+                return {
+                    "status": "failed",
+                    "error": f"Could not resolve LinkedIn profile: {e}. Reconnect LinkedIn in Settings.",
+                    "platform": "linkedin"
+                }
 
         try:
             url = "https://api.linkedin.com/v2/ugcPosts"
@@ -76,8 +80,9 @@ class LinkedInService:
                 }
 
         except Exception as e:
-            print(f"LinkedIn posting failed: {e}. Falling back to sandbox.")
-            return self._publish_mock(content, media_url)
+            # Real credentials, real failure — report it honestly
+            print(f"LinkedIn posting failed: {e}")
+            return {"status": "failed", "error": str(e), "platform": "linkedin"}
 
     def _fetch_person_urn(self, access_token: str) -> str:
         """Helper to get user info and return URN: 'urn:li:person:<id>'"""

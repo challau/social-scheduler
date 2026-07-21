@@ -8,9 +8,16 @@ class InstagramService:
         Publishes an image or video to Instagram Business Account via the Graph API.
         If details are missing, falls back to a sandbox simulation.
         """
-        # If no access token, business ID, or if it is mock/sandbox token, run simulation
-        if not instagram_business_id or not access_token or access_token.startswith("mock_"):
+        # Simulate only for mock/sandbox tokens (no real credentials connected)
+        if not access_token or access_token.startswith("mock_"):
             return self._publish_mock(caption, media_url)
+
+        if not instagram_business_id:
+            return {
+                "status": "failed",
+                "error": "No Instagram business account linked. Reconnect Instagram in Settings.",
+                "platform": "instagram"
+            }
 
         try:
             # Step 1: Create a media container
@@ -57,8 +64,10 @@ class InstagramService:
                 }
 
         except Exception as e:
-            print(f"Instagram Graph API posting failed: {e}. Falling back to sandbox.")
-            return self._publish_mock(caption, media_url)
+            # Real credentials, real failure — report it honestly so the
+            # publisher records a per-platform failure instead of a fake success
+            print(f"Instagram Graph API posting failed: {e}")
+            return {"status": "failed", "error": str(e), "platform": "instagram"}
 
     def _publish_mock(self, caption: str, media_url: str) -> Dict[str, Any]:
         # Simulate publishing to Instagram

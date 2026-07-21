@@ -1,0 +1,100 @@
+services:
+  # FastAPI web service
+  - type: web
+    name: socialflow-backend
+    runtime: python
+    rootDir: backend
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    preDeployCommand: alembic upgrade head
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: DATABASE_URL
+        fromDatabase:
+          name: socialflow-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: socialflow-redis
+          type: keyvalue
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: RUN_SCHEDULER_IN_WEB
+        value: "false"
+      - key: FORCE_HTTPS
+        value: "true"
+      - key: MOCK_MODE
+        value: "false"
+      # Set these in the Render dashboard after the first deploy:
+      - key: BACKEND_URL
+        sync: false # e.g. https://socialflow-backend.onrender.com
+      - key: FRONTEND_URL
+        sync: false # e.g. https://socialflow.vercel.app
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: CLOUDINARY_URL
+        sync: false
+      - key: INSTAGRAM_CLIENT_ID
+        sync: false
+      - key: INSTAGRAM_CLIENT_SECRET
+        sync: false
+      - key: LINKEDIN_CLIENT_ID
+        sync: false
+      - key: LINKEDIN_CLIENT_SECRET
+        sync: false
+      - key: TWITTER_CLIENT_ID
+        sync: false
+      - key: TWITTER_CLIENT_SECRET
+        sync: false
+
+  # APScheduler background worker (publishes scheduled posts)
+  - type: worker
+    name: socialflow-scheduler
+    runtime: python
+    rootDir: backend
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m app.workers.run_worker
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: DATABASE_URL
+        fromDatabase:
+          name: socialflow-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: socialflow-redis
+          type: keyvalue
+          property: connectionString
+      - key: SECRET_KEY
+        fromService:
+          name: socialflow-backend
+          type: web
+          envVarKey: SECRET_KEY
+      - key: MOCK_MODE
+        value: "false"
+      - key: BACKEND_URL
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: CLOUDINARY_URL
+        sync: false
+
+  # Redis (PKCE verifiers for Twitter OAuth)
+  - type: keyvalue
+    name: socialflow-redis
+    plan: free
+    ipAllowList: [] # internal connections only
+
+databases:
+  - name: socialflow-db
+    plan: basic-256mb
+    databaseName: socialflow
+    user: socialflow

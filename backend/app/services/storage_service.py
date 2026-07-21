@@ -104,7 +104,7 @@ class StorageService:
             shutil.copyfileobj(file.file, buffer)
 
         # Server-relative URL that FastAPI static files mounts will serve
-        url = f"http://localhost:8000/uploads/{unique_filename}"
+        url = f"{settings.BACKEND_URL.rstrip('/')}/uploads/{unique_filename}"
         
         # Local thumbnail: for local images, same as url, for videos, use a placeholder or same
         thumbnail_url = url

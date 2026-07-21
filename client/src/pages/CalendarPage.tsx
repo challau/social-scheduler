@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import DashboardLayout from "../components/DashboardLayout";
+import { API_URL } from "../config";
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -42,7 +43,7 @@ export default function CalendarPage() {
       const headers: Record<string, string> = token ? { "Authorization": `Bearer ${token}` } : {};
 
       try {
-        const res = await fetch("http://localhost:8000/posts", { headers });
+        const res = await fetch(`${API_URL}/posts`, { headers });
         const data = await res.json();
         
         if (res.ok) {

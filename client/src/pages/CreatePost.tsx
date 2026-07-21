@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "../components/DashboardLayout";
+import { API_URL } from "../config";
 import { 
   Sparkles, 
   Upload, 
@@ -68,6 +69,31 @@ export default function CreatePost() {
   const [publishing, setPublishing] = useState(false);
   const [alert, setAlert] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
+  // New SaaS brand voice and content scoring states
+  const [brandVoice, setBrandVoice] = useState("");
+  const [contentScore, setContentScore] = useState<{ creativity: number; engagement_prediction: number; seo_score: number } | null>(null);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      try {
+        const res = await fetch(`${API_URL}/auth/me`, {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.brand_voice) {
+            setBrandVoice(data.brand_voice);
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to load user profile for brand voice initialization", err);
+      }
+    };
+    fetchProfile();
+  }, []);
+
   // Handle Drag & Drop / File Select
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -83,7 +109,7 @@ export default function CreatePost() {
     const headers: Record<string, string> = token ? { "Authorization": `Bearer ${token}` } : {};
 
     try {
-      const res = await fetch("http://localhost:8000/media/upload", {
+      const res = await fetch(`${API_URL}/media/upload`, {
         method: "POST",
         headers,
         body: formData
@@ -94,14 +120,8 @@ export default function CreatePost() {
       } else {
         throw new Error(data.detail || "Upload failed");
       }
-    } catch (err) {
-      console.warn("Backend API offline. Simulating local image uploading.");
-      const localUrl = URL.createObjectURL(file);
-      setMedia({
-        url: localUrl,
-        media_type: file.type.startsWith("video/") ? "video" : "image",
-        thumbnail_url: localUrl
-      });
+    } catch (err: any) {
+      setAlert({ type: "error", message: `Media upload failed: ${err.message || "server unreachable"}` });
     } finally {
       setUploading(false);
     }
@@ -124,10 +144,10 @@ export default function CreatePost() {
     } : { "Content-Type": "application/json" };
 
     try {
-      const res = await fetch("http://localhost:8000/ai/generate", {
+      const res = await fetch(`${API_URL}/ai/generate`, {
         method: "POST",
         headers,
-        body: JSON.stringify({ prompt, media_url: media?.url })
+        body: JSON.stringify({ prompt, media_url: media?.url, brand_voice: brandVoice })
       });
       const data = await res.json();
 
@@ -136,10 +156,8 @@ export default function CreatePost() {
       } else {
         throw new Error(data.detail || "AI Generation failed");
       }
-    } catch (err) {
-      console.warn("Backend API offline. Generating mock copy client-side.");
-      const mockResult = simulateAIGenerator(prompt, media?.url);
-      populateAIGenerations(mockResult);
+    } catch (err: any) {
+      setAlert({ type: "error", message: `AI generation failed: ${err.message || "server unreachable"}` });
     } finally {
       setGenerating(false);
     }
@@ -149,6 +167,7 @@ export default function CreatePost() {
     setAiTitle("AI Generated Social Campaign");
     setRecPlatform(data.recommended_platform || "LinkedIn");
     setBestTime(data.best_posting_time || "10:00 AM");
+    setContentScore(data.content_score || null);
 
     // Instagram
     setInstagramCopy(data.instagram_caption || "");
@@ -162,32 +181,6 @@ export default function CreatePost() {
     // Twitter
     setTwitterCopy(data.twitter_caption || "");
     setTwitterTags(data.hashtags?.join(", ") || "");
-  };
-
-  const simulateAIGenerator = (promptText: string, mediaUrl?: string) => {
-    const combined = `${promptText} ${mediaUrl || ""}`.toLowerCase();
-    
-    if (combined.includes("hackathon") || combined.includes("coding")) {
-      return {
-        summary: "Teamwork and agile scaling at the technology hackathon.",
-        instagram_caption: "Building the future with innovation! 🚀 Endless caffeine and modular coding workflows.",
-        linkedin_caption: "Excited to participate in this week's innovative technology hackathon! 💻 Collaborating on building SaaS platforms under pressure teaches product scalability, quick modular architecture, and cohesive teamwork.",
-        twitter_caption: "Building. Learning. Creating. 🚀 Hacking away at AI-powered social media automation.",
-        hashtags: ["Hackathon", "AI", "Developers", "Coding"],
-        recommended_platform: "LinkedIn",
-        best_posting_time: "Thursday at 2:00 PM"
-      };
-    }
-    
-    return {
-      summary: "Leveraging SaaS automation to prevent content creator burnout.",
-      instagram_caption: `Optimizing our digital content distribution! 📈 ${promptText || "Small habits generate compound growth."}`,
-      linkedin_caption: `Efficiency is the ultimate competitive advantage. By automating how we cross-publish, we can remain highly consistent without burning out. Details on: '${promptText || "our new content workflow"}'`,
-      twitter_caption: `Consistency > Intensity. Streamlining cross-posting channels. ⚡️ '${promptText || "Habits compound."}'`,
-      hashtags: ["GrowthMindset", "ContentStrategy", "SaaSLife", "Productivity"],
-      recommended_platform: "Instagram",
-      best_posting_time: "Wednesday at 12:00 PM"
-    };
   };
 
   // Submit Post to Database (Publish or Schedule)
@@ -238,7 +231,7 @@ export default function CreatePost() {
 
     try {
       // Step 1: Create post campaign in database
-      const resCreate = await fetch("http://localhost:8000/posts/create", {
+      const resCreate = await fetch(`${API_URL}/posts/create`, {
         method: "POST",
         headers,
         body: JSON.stringify(payload)
@@ -251,23 +244,47 @@ export default function CreatePost() {
 
       // Step 2: Handle immediate publication trigger
       if (statusType === "published") {
-        const resPub = await fetch(`http://localhost:8000/posts/publish`, {
+        const resPub = await fetch(`${API_URL}/posts/publish`, {
           method: "POST",
           headers,
           body: JSON.stringify({ post_id: postId })
         });
         const dataPub = await resPub.json();
         if (!resPub.ok) throw new Error(dataPub.detail || "Publishing service call failed");
+
+        // Per-platform results: [{platform, status, error?}, ...]
+        const results: { platform: string; status: string; error?: string }[] = dataPub;
+        const succeeded = results.filter(r => r.status === "success").map(r => r.platform);
+        const failed = results.filter(r => r.status !== "success");
+
+        if (failed.length === 0) {
+          setAlert({ type: "success", message: `Published to ${succeeded.join(", ")} successfully!` });
+        } else if (succeeded.length > 0) {
+          const failDetails = failed.map(f => `${f.platform} (${f.error || "failed"})`).join("; ");
+          setAlert({
+            type: "error",
+            message: `Published to ${succeeded.join(", ")}, but failed on: ${failDetails}`
+          });
+        } else {
+          const failDetails = failed.map(f => `${f.platform}: ${f.error || "failed"}`).join("; ");
+          setAlert({ type: "error", message: `Publishing failed — ${failDetails}` });
+        }
+
+        // Only leave the page when nothing failed, so errors stay readable
+        if (failed.length === 0) {
+          setTimeout(() => navigate("/dashboard"), 1500);
+        }
+        return;
       }
 
       // Step 3: Handle explicit schedule trigger verification
       if (statusType === "scheduled") {
-        const resSched = await fetch(`http://localhost:8000/posts/schedule`, {
+        const resSched = await fetch(`${API_URL}/posts/schedule`, {
           method: "POST",
           headers,
-          body: JSON.stringify({ 
-            post_id: postId, 
-            scheduled_time: new Date(scheduledTime).toISOString() 
+          body: JSON.stringify({
+            post_id: postId,
+            scheduled_time: new Date(scheduledTime).toISOString()
           })
         });
         const dataSched = await resSched.json();
@@ -276,22 +293,18 @@ export default function CreatePost() {
 
       setAlert({
         type: "success",
-        message: statusType === "published" 
-          ? "Campaign published successfully!" 
-          : "Campaign scheduled successfully!"
+        message: statusType === "scheduled"
+          ? "Campaign scheduled successfully!"
+          : "Draft saved successfully!"
       });
 
       setTimeout(() => navigate("/dashboard"), 1500);
 
     } catch (err: any) {
-      console.warn("Backend API offline. Simulating local post lifecycle success.");
       setAlert({
-        type: "success",
-        message: statusType === "published"
-          ? "Post published successfully (simulation mode)!"
-          : "Post scheduled successfully (simulation mode)!"
+        type: "error",
+        message: err.message || "Request failed — check your connection and try again."
       });
-      setTimeout(() => navigate("/dashboard"), 1500);
     } finally {
       setPublishing(false);
     }
@@ -371,6 +384,18 @@ export default function CreatePost() {
                 )}
               </div>
 
+              {/* Brand Voice / Style Input */}
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Brand Voice / Style</label>
+                <input
+                  type="text"
+                  className="w-full px-4 py-2.5 bg-slate-950/40 border border-slate-800/80 rounded-xl text-slate-100 placeholder-slate-500 text-xs focus:outline-none focus:border-violet-500 transition-colors"
+                  placeholder="e.g. Professional & technical, casual humor, friendly..."
+                  value={brandVoice}
+                  onChange={(e) => setBrandVoice(e.target.value)}
+                />
+              </div>
+
               <button
                 onClick={handleAIGeneration}
                 disabled={generating || uploading}
@@ -380,6 +405,45 @@ export default function CreatePost() {
                 {generating ? "AI generating versions..." : "Generate cross-platform versions"}
               </button>
             </div>
+
+            {/* Content Score Card */}
+            {contentScore && (
+              <div className="bg-slate-900/40 border border-slate-800/80 backdrop-blur-md rounded-2xl p-6 space-y-4">
+                <h3 className="font-bold text-slate-200 flex items-center gap-2 text-sm uppercase tracking-wider">
+                  <Sparkles className="size-4 text-violet-400" />
+                  AI Content Quality Score
+                </h3>
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex justify-between text-xs font-semibold text-slate-400 mb-1">
+                      <span>CREATIVITY</span>
+                      <span className="text-violet-400 font-bold">{contentScore.creativity}%</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-slate-950/60 rounded-full overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full" style={{ width: `${contentScore.creativity}%` }} />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-xs font-semibold text-slate-400 mb-1">
+                      <span>ENGAGEMENT PREDICTION</span>
+                      <span className="text-cyan-400 font-bold">{contentScore.engagement_prediction}%</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-slate-950/60 rounded-full overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full" style={{ width: `${contentScore.engagement_prediction}%` }} />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-xs font-semibold text-slate-400 mb-1">
+                      <span>SEO & REACH OPTIMIZATION</span>
+                      <span className="text-emerald-400 font-bold">{contentScore.seo_score}%</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-slate-950/60 rounded-full overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full" style={{ width: `${contentScore.seo_score}%` }} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Datepicker Scheduling card */}
             {aiTitle && (
@@ -391,7 +455,20 @@ export default function CreatePost() {
 
                 {/* Platforms selection checkboxes */}
                 <div className="space-y-2.5">
-                  <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Target Platforms</label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Target Platforms</label>
+                    <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-400 hover:text-slate-200 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={selectedPlatforms.length === 3}
+                        onChange={(e) => {
+                          setSelectedPlatforms(e.target.checked ? ["instagram", "linkedin", "twitter"] : []);
+                        }}
+                        className="rounded border-slate-700 bg-slate-900 text-violet-500 focus:ring-violet-500 size-4"
+                      />
+                      Select all
+                    </label>
+                  </div>
                   <div className="flex flex-wrap gap-3">
                     <label className={`flex items-center gap-2.5 cursor-pointer bg-slate-950/40 border px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
                       selectedPlatforms.includes("instagram") ? "border-pink-500/40 text-pink-400" : "border-slate-800 text-slate-400 hover:text-slate-200"

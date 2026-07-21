@@ -1,0 +1,6 @@
+# Railway / Heroku-style process file (Render uses render.yaml instead).
+# On Railway create two services from this repo (rootDir: backend), one per line.
+# IMPORTANT: web and worker must share the same SECRET_KEY (token encryption).
+web: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+worker: python -m app.workers.run_worker
+release: alembic upgrade head

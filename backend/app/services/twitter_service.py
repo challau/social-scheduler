@@ -45,8 +45,9 @@ class TwitterService:
                 }
 
         except Exception as e:
-            print(f"Twitter posting failed: {e}. Falling back to sandbox.")
-            return self._publish_mock(content, media_url)
+            # Real credentials, real failure — report it honestly
+            print(f"Twitter posting failed: {e}")
+            return {"status": "failed", "error": str(e), "platform": "twitter"}
 
     def _publish_mock(self, content: str, media_url: Optional[str] = None) -> Dict[str, Any]:
         mock_id = f"tw_post_{int(time.time())}"

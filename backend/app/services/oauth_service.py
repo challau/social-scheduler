@@ -23,8 +23,15 @@ def refresh_social_token(db: Session, account: SocialAccount) -> str:
     client_id = getattr(settings, f"{platform.upper()}_CLIENT_ID", None)
     client_secret = getattr(settings, f"{platform.upper()}_CLIENT_SECRET", None)
 
-    # In mock mode, we just mock update the token expiry
+    # In mock mode, simulate token refresh — but still honour missing refresh credentials
     if settings.MOCK_MODE or not (client_id and client_secret):
+        # If no refresh_token exists and token is expired, we cannot refresh — raise to trigger partial-failure
+        if not account.refresh_token:
+            if platform == "instagram":
+                # Instagram refreshes via current access token; in mock mode we just allow it
+                pass
+            else:
+                raise ValueError("reconnect account")
         mock_new_token = f"mock_{platform}_refreshed_{int(time.time())}"
         account.access_token = encrypt_token(mock_new_token)
         account.token_expires_at = now + datetime.timedelta(days=30)

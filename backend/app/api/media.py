@@ -47,6 +47,9 @@ async def upload_media_file(
             "media_id": media_record.id,
             "file_url": media_record.file_url,
             "file_type": media_record.file_type,
+            # Aliases matching the frontend contract (media.url / media.media_type)
+            "url": media_record.file_url,
+            "media_type": media_record.file_type,
             "thumbnail_url": upload_result.get("thumbnail_url", media_record.file_url)
         }
     except Exception as e:

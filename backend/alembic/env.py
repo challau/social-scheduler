@@ -9,14 +9,15 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.database.models import Base
-from app.config import settings
+from app.database.session import DATABASE_URL
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
 
-# Overwrite database connection url dynamically from settings
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+# Overwrite database connection url dynamically (env var > .env > sqlite fallback,
+# with postgres:// normalized to postgresql:// for SQLAlchemy 2.x)
+config.set_main_option("sqlalchemy.url", DATABASE_URL)
 
 # Interpret the config file for Python logging.
 if config.config_file_name is not None:

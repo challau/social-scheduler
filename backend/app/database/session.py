@@ -1,9 +1,15 @@
 import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
+from ..config import settings
 
-# Default to SQLite for local development if DATABASE_URL is not set
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./social_flow.db")
+# Resolved via pydantic-settings: real env var first, then .env file,
+# then the SQLite fallback for local development
+DATABASE_URL = os.getenv("DATABASE_URL", settings.DATABASE_URL)
+
+# Render/Heroku hand out postgres:// URLs, which SQLAlchemy 2.x no longer accepts
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 # SQLite needs extra arguments to allow multi-threaded access in FastAPI
 connect_args = {}

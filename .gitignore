@@ -1,2 +1,25 @@
-node_modules
+# Dependencies
+node_modules/
+backend/.venv/
+.venv/
+
+# Environment secrets — never commit
 .env
+.env.*
+!.env.example
+
+# Build output
+client/dist/
+dist/
+
+# Local databases & uploads
+*.db
+backend/uploads/
+
+# Python artifacts
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# OS / editor
+.DS_Store

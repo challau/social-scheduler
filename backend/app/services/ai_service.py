@@ -13,23 +13,29 @@ class AIService:
             except Exception as e:
                 print(f"Failed to initialize OpenAI client: {e}")
 
-    def generate_social_content(self, text_prompt: str, media_url: Optional[str] = None) -> Dict[str, Any]:
+    def generate_social_content(self, text_prompt: str, media_url: Optional[str] = None, brand_voice: Optional[str] = None) -> Dict[str, Any]:
         """
         Generates tailored social posts for Instagram, LinkedIn, and Twitter/X
         based on a text prompt and/or an uploaded image/video.
+        Can optionally adopt a specific brand voice/style.
         """
         # If OpenAI client is not available, run in Mock mode
         if not self.client:
-            return self._generate_mock_content(text_prompt, media_url)
+            return self._generate_mock_content(text_prompt, media_url, brand_voice)
 
         try:
             # We use gpt-4o-mini as it is fast, cost-effective, and supports vision.
             model = "gpt-4o-mini"
             
+            voice_instruction = ""
+            if brand_voice:
+                voice_instruction = f"You MUST strictly adapt the tone, style, and language of all captions to match this brand voice style: '{brand_voice}'."
+
             system_instruction = (
                 "You are an expert AI social media manager. Analyze the user's input "
                 "(text prompt and optionally an image) and generate high-engagement posts for "
                 "Instagram, LinkedIn, and Twitter/X.\n"
+                f"{voice_instruction}\n"
                 "You MUST respond ONLY with a raw JSON object matching this schema:\n"
                 "{\n"
                 "  \"instagram\": {\n"
@@ -47,7 +53,12 @@ class AIService:
                 "  },\n"
                 "  \"title\": \"Catchy title for the post campaign\",\n"
                 "  \"recommended_platform\": \"Instagram/LinkedIn/Twitter\",\n"
-                "  \"best_posting_time\": \"10:00 AM or 5:00 PM (explain why briefly)\"\n"
+                "  \"best_posting_time\": \"10:00 AM or 5:00 PM (explain why briefly)\",\n"
+                "  \"content_score\": {\n"
+                "    \"creativity\": 85,\n"
+                "    \"engagement_prediction\": 90,\n"
+                "    \"seo_score\": 78\n"
+                "  }\n"
                 "}"
             )
 
@@ -62,9 +73,6 @@ class AIService:
                 user_content.append({"type": "text", "text": "Analyze the attached image and generate social media content."})
 
             if media_url:
-                # If it's a video, vision models can't analyze it directly over URL easily,
-                # but we can pass it as a URL and OpenAI will try, or we fall back.
-                # Assuming images for vision.
                 user_content.append({
                     "type": "image_url",
                     "image_url": {
@@ -87,31 +95,37 @@ class AIService:
 
         except Exception as e:
             print(f"OpenAI API call failed: {e}. Falling back to mock generation.")
-            return self._generate_mock_content(text_prompt, media_url)
+            return self._generate_mock_content(text_prompt, media_url, brand_voice)
 
-    def _generate_mock_content(self, text_prompt: str, media_url: Optional[str] = None) -> Dict[str, Any]:
+    def _generate_mock_content(self, text_prompt: str, media_url: Optional[str] = None, brand_voice: Optional[str] = None) -> Dict[str, Any]:
         """
         Generates realistic simulated social media copies when OpenAI is disabled.
         Recognizes keywords like 'hackathon', 'launch', 'design', etc.
         """
         combined = f"{text_prompt} {media_url or ''}".lower()
+        voice_suffix = f" [Style: {brand_voice}]" if brand_voice else ""
+        
+        # Determine some pseudorandom but realistic content scores
+        creativity = 80 + (len(text_prompt or "") % 16)
+        engagement = 75 + (len(combined) % 21)
+        seo = 70 + (len(text_prompt or "") % 26)
         
         # 1. Hackathon Scenario
         if "hackathon" in combined or "coding" in combined or "developer" in combined:
             title = "Building the Future at the Hackathon"
-            inst_caption = "Building the future with innovation! 🚀 Endless coffee, lines of code, and building something game-changing with an incredible team."
+            inst_caption = f"Building the future with innovation! 🚀 Endless coffee, lines of code, and building something game-changing with an incredible team.{voice_suffix}"
             inst_tags = ["Hackathon", "AI", "Developers", "BuildInPublic", "Coding Life"]
             inst_story = "Record a quick 15-second panning shot of the team coding, tagging the event organizer with a countdown sticker!"
             
             link_caption = (
-                "Excited to participate in this week's innovative technology hackathon! 💻 "
+                f"Excited to participate in this week's innovative technology hackathon! 💻{voice_suffix}\n\n"
                 "Our team is focusing on building AI-powered scheduling tools that automate cross-platform publishing.\n\n"
                 "Collaborating under tight timelines teaches us the importance of clean architecture, modular codebases, "
                 "and quick prototyping. Proud of the progress we're making and grateful to the mentors who guided us today."
             )
             link_summary = "Reflections on team collaboration and building an AI SaaS prototype under pressure at a local hackathon."
             
-            tw_caption = "Building. Learning. Creating. 🚀 Hacking away at the next generation of social media automation tools."
+            tw_caption = f"Building. Learning. Creating. 🚀 Hacking away at the next generation of social media automation tools.{voice_suffix}"
             tw_tags = ["BuildInPublic", "Hackathon", "Coding"]
             
             rec_platform = "LinkedIn"
@@ -120,12 +134,12 @@ class AIService:
         # 2. Product Launch Scenario
         elif "launch" in combined or "announcement" in combined or "startup" in combined:
             title = "SocialFlow AI Official Launch"
-            inst_caption = "It's official: SocialFlow AI is live! 🎉 Say goodbye to spending hours copy-pasting posts. Generate, customize, and schedule cross-platform posts in seconds."
+            inst_caption = f"It's official: SocialFlow AI is live! 🎉 Say goodbye to spending hours copy-pasting posts. Generate, customize, and schedule cross-platform posts in seconds.{voice_suffix}"
             inst_tags = ["SaaSLaunch", "ProductLaunch", "SocialFlowAI", "MarketingTools"]
             inst_story = "Show a screen-record tutorial of the 'Create Post' page generating text in real-time, overlaying a Link sticker to sign up!"
             
             link_caption = (
-                "Today, we are thrilled to announce the official launch of SocialFlow AI! 🚀\n\n"
+                f"Today, we are thrilled to announce the official launch of SocialFlow AI! 🚀{voice_suffix}\n\n"
                 "Managing social media should not feel like manual labor. With our new AI Engine, "
                 "you can upload an image or draft a single prompt, and instantly preview optimized versions for "
                 "LinkedIn, Instagram, and Twitter/X with tailored captions, hashtags, and summaries.\n\n"
@@ -133,7 +147,7 @@ class AIService:
             )
             link_summary = "Product launch announcement explaining how SocialFlow AI automates cross-platform social media posting."
             
-            tw_caption = "SocialFlow AI is officially LIVE! 🎉 Upload once. Generate platform-specific posts with AI. Schedule instantly."
+            tw_caption = f"SocialFlow AI is officially LIVE! 🎉 Upload once. Generate platform-specific posts with AI. Schedule instantly.{voice_suffix}"
             tw_tags = ["Startup", "MarketingTech", "Launch"]
             
             rec_platform = "Twitter"
@@ -143,19 +157,19 @@ class AIService:
         else:
             cleaned_prompt = text_prompt if text_prompt else "our new content workflow"
             title = f"Enhancing Content Strategy"
-            inst_caption = f"Leveling up our social content workflow! 📈 {cleaned_prompt}. Small daily improvements lead to big long-term results."
+            inst_caption = f"Leveling up our social content workflow! 📈 {cleaned_prompt}. Small daily improvements lead to big long-term results.{voice_suffix}"
             inst_tags = ["GrowthMindset", "ContentStrategy", "SaaSLife", "SocialMediaManager"]
             inst_story = "Share a behind-the-scenes photo of the workspace with a 'Poll' sticker asking: 'Do you automate your social posting?'"
             
             link_caption = (
-                "Efficiency is the ultimate competitive advantage for small teams. "
+                f"Efficiency is the ultimate competitive advantage for small teams.{voice_suffix}\n\n"
                 "By optimizing how we distribute our content—focusing on: "
                 f"'{cleaned_prompt}'—we can remain consistent without burning out.\n\n"
                 "How is your team managing content distribution this quarter? Are you using automation tools or manual workflows?"
             )
             link_summary = "An analysis of workflow efficiency and the importance of content distribution automation for small teams."
             
-            tw_caption = f"Consistency > Intensity. Streamlining our content strategy around: {cleaned_prompt} ⚡️"
+            tw_caption = f"Consistency > Intensity. Streamlining our content strategy around: {cleaned_prompt} ⚡️{voice_suffix}"
             tw_tags = ["ContentMarketing", "Productivity"]
             
             rec_platform = "Instagram"
@@ -177,7 +191,12 @@ class AIService:
             },
             "title": title,
             "recommended_platform": rec_platform,
-            "best_posting_time": best_time
+            "best_posting_time": best_time,
+            "content_score": {
+                "creativity": creativity,
+                "engagement_prediction": engagement,
+                "seo_score": seo
+            }
         }
 
 ai_service = AIService()

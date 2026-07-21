@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import DashboardLayout from "../components/DashboardLayout";
+import { API_URL } from "../config";
 import { 
   Eye, 
   Heart, 
@@ -48,13 +49,13 @@ export default function AnalyticsPage() {
       const headers: Record<string, string> = token ? { "Authorization": `Bearer ${token}` } : {};
 
       try {
-        const resStats = await fetch("http://localhost:8000/analytics", { headers });
+        const resStats = await fetch(`${API_URL}/analytics`, { headers });
         const dataStats = await resStats.json();
 
-        const resBreakdown = await fetch("http://localhost:8000/analytics/breakdown", { headers });
+        const resBreakdown = await fetch(`${API_URL}/analytics/breakdown`, { headers });
         const dataBreakdown = await resBreakdown.json();
 
-        const resHist = await fetch("http://localhost:8000/analytics/history", { headers });
+        const resHist = await fetch(`${API_URL}/analytics/history`, { headers });
         const dataHist = await resHist.json();
 
         if (resStats.ok && resBreakdown.ok && resHist.ok) {

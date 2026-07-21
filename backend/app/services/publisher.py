@@ -100,7 +100,7 @@ def publish_post_campaign(db: Session, post_id: int) -> List[Dict[str, Any]]:
                     access_token=active_access_token,
                     caption=caption,
                     media_url=media_url or "https://socialflow.ai/default.png",
-                    instagram_business_id="mock_ig_business_id"
+                    instagram_business_id=account.platform_user_id
                 )
 
             elif platform_lower == "linkedin":
@@ -113,7 +113,8 @@ def publish_post_campaign(db: Session, post_id: int) -> List[Dict[str, Any]]:
                 pub_res = linkedin_service.publish_post(
                     access_token=active_access_token,
                     content=content,
-                    media_url=media_url
+                    media_url=media_url,
+                    person_urn=account.platform_user_id
                 )
 
             elif platform_lower == "twitter":
@@ -135,6 +136,12 @@ def publish_post_campaign(db: Session, post_id: int) -> List[Dict[str, Any]]:
                 )
 
         except Exception as e:
+            # Dynamically import Sentry to avoid dependency crash in environments without it
+            try:
+                import sentry_sdk
+                sentry_sdk.capture_exception(e)
+            except ImportError:
+                pass
             pub_res = {"status": "failed", "error": str(e)}
 
         # 4. Save results

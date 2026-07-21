@@ -145,3 +145,33 @@ def test_publish_partial_failure(client, db):
     # Verify that post status in the DB is set to partial_failed
     post_db = db.query(Post).filter(Post.id == post_id).first()
     assert post_db.status == "partial_failed"
+
+def test_publish_with_unconnected_platform_partial(client):
+    # Only twitter connected, but campaign targets twitter + linkedin.
+    # Publish must proceed: twitter succeeds, linkedin records "Account not connected".
+    signup_res = client.post(
+        "/auth/signup",
+        json={"name": "Partial Conn", "email": "partial_conn@example.com", "password": "securepassword123"}
+    )
+    token = signup_res.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    client.get("/oauth/twitter/login?token=" + token, follow_redirects=False)
+
+    create_res = client.post(
+        "/posts/create",
+        json={"content": "Cross post", "platforms": ["twitter", "linkedin"], "status": "draft"},
+        headers=headers
+    )
+    post_id = create_res.json()["post_id"]
+
+    res = client.post("/posts/publish", json={"post_id": post_id}, headers=headers)
+    assert res.status_code == 200
+    results = res.json()
+    assert len(results) == 2
+
+    tw = next(r for r in results if r["platform"] == "twitter")
+    li = next(r for r in results if r["platform"] == "linkedin")
+    assert tw["status"] == "success"
+    assert li["status"] == "failed"
+    assert li["error"] == "Account not connected"

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import DashboardLayout from "../components/DashboardLayout";
+import { API_URL } from "../config";
 import { 
   User, 
   Share2, 
@@ -63,7 +64,7 @@ export default function SettingsPage() {
 
     try {
       // Fetch user profile
-      const resMe = await fetch("http://localhost:8000/auth/me", { headers });
+      const resMe = await fetch(`${API_URL}/auth/me`, { headers });
       const dataMe = await resMe.json();
       if (resMe.ok) {
         setProfile(dataMe);
@@ -71,7 +72,7 @@ export default function SettingsPage() {
       }
 
       // Fetch connected accounts
-      const resAcc = await fetch("http://localhost:8000/oauth/accounts", { headers });
+      const resAcc = await fetch(`${API_URL}/oauth/accounts`, { headers });
       const dataAcc = await resAcc.json();
       if (resAcc.ok) {
         setConnectedAccs(dataAcc);
@@ -117,7 +118,7 @@ export default function SettingsPage() {
   const handleConnect = (platform: string) => {
     const token = localStorage.getItem("token") || "";
     // Redirect to backend OAuth route
-    window.location.href = `http://localhost:8000/oauth/${platform}/login?token=${token}`;
+    window.location.href = `${API_URL}/oauth/${platform}/login?token=${token}`;
   };
 
   // Disconnect social account
@@ -126,7 +127,7 @@ export default function SettingsPage() {
     const headers: Record<string, string> = token ? { "Authorization": `Bearer ${token}` } : {};
 
     try {
-      const res = await fetch(`http://localhost:8000/oauth/accounts/${platform}`, {
+      const res = await fetch(`${API_URL}/oauth/accounts/${platform}`, {
         method: "DELETE",
         headers
       });

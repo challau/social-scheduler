@@ -34,7 +34,12 @@ class ProfileResponse(BaseModel):
     id: int
     name: str
     email: str
+    brand_voice: Optional[str] = None
     created_at: datetime.datetime
+
+class ProfileUpdate(BaseModel):
+    name: Optional[str] = None
+    brand_voice: Optional[str] = None
 
 # Helper functions
 def hash_password(password: str) -> str:
@@ -183,3 +188,26 @@ def refresh(refresh_token: str, db: Session = Depends(get_db)):
 @router.get("/me", response_model=ProfileResponse)
 def get_me(current_user: User = Depends(get_current_user)):
     return current_user
+
+@router.patch("/me", response_model=dict)
+def update_profile(
+    data: ProfileUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    if data.name is not None:
+        current_user.name = data.name
+    if data.brand_voice is not None:
+        current_user.brand_voice = data.brand_voice
+    db.commit()
+    db.refresh(current_user)
+    return {
+        "status": "success",
+        "message": "Profile updated",
+        "user": {
+            "id": current_user.id,
+            "name": current_user.name,
+            "email": current_user.email,
+            "brand_voice": current_user.brand_voice
+        }
+    }
