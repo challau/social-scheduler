@@ -32,7 +32,8 @@ export default function Login() {
         }, 2500);
 
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 18000);
+        const timeoutId = setTimeout(() => controller.abort(), 2500); // 2.5s max wait for instant 2-3s login redirect
+
 
         const endpoint = loginState ? "login" : "signup";
         const payload = loginState ? { email, password } : { name, email, password };
