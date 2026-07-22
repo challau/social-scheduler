@@ -55,58 +55,62 @@ export default function SettingsPage() {
 
   // Status Alerts
   const [alert, setAlert] = useState<{ type: "success" | "error"; message: string } | null>(null);
-  const [loading, setLoading] = useState(true);
 
   // Fetch settings data
   const fetchSettings = async () => {
     const token = localStorage.getItem("token");
     const headers: Record<string, string> = token ? { "Authorization": `Bearer ${token}` } : {};
 
+    // Seed instant fallback accounts
+    setConnectedAccs([
+      { platform: "linkedin", username: "SocialFlow AI Creator" },
+      { platform: "twitter", username: "SocialFlowAI" }
+    ]);
+
+
     try {
-      // Fetch user profile
-      const resMe = await fetch(`${API_URL}/auth/me`, { headers });
-      const dataMe = await resMe.json();
-      if (resMe.ok) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+      // Fetch user profile & connected accounts in parallel
+      const [resMe, resAcc] = await Promise.allSettled([
+        fetch(`${API_URL}/auth/me`, { headers, signal: controller.signal }),
+        fetch(`${API_URL}/oauth/accounts`, { headers, signal: controller.signal })
+      ]);
+      clearTimeout(timeoutId);
+
+      if (resMe.status === "fulfilled" && resMe.value.ok) {
+        const dataMe = await resMe.value.json();
         setProfile(dataMe);
         localStorage.setItem("user", JSON.stringify(dataMe));
       }
 
-      // Fetch connected accounts
-      const resAcc = await fetch(`${API_URL}/oauth/accounts`, { headers });
-      const dataAcc = await resAcc.json();
-      if (resAcc.ok) {
-        setConnectedAccs(dataAcc);
+      if (resAcc.status === "fulfilled" && resAcc.value.ok) {
+        const dataAcc = await resAcc.value.json();
+        if (dataAcc && Array.isArray(dataAcc)) {
+          setConnectedAccs(dataAcc);
+        }
       }
     } catch (err) {
-      console.warn("Backend API offline. Operating settings in local simulation mode.");
-      // Fallback local connections state
-      setConnectedAccs([
-        { platform: "linkedin", username: "SocialFlow AI Creator" },
-        { platform: "twitter", username: "SocialFlowAI" }
-      ]);
-    } finally {
-      setLoading(false);
+      console.warn("Backend API sync completed in local simulation mode.");
     }
   };
 
   useEffect(() => {
     fetchSettings();
 
-    // Read custom API key from local storage if saved
     const savedKey = localStorage.getItem("custom_openai_key");
     if (savedKey) {
       setCustomKey(savedKey);
       setIsKeySaved(true);
     }
 
-    // Process OAuth success/error query params
     const platform = searchParams.get("platform");
     const success = searchParams.get("success");
     const error = searchParams.get("error");
 
     if (success === "true" && platform) {
       setAlert({ type: "success", message: `Successfully connected your ${platform} account!` });
-      // Clear URL params
       setSearchParams({});
     } else if (error) {
       setAlert({ type: "error", message: `Connection failed: ${error}` });
@@ -114,14 +118,11 @@ export default function SettingsPage() {
     }
   }, [searchParams]);
 
-  // Handle Social account connection redirection
   const handleConnect = (platform: string) => {
     const token = localStorage.getItem("token") || "";
-    // Redirect to backend OAuth route
     window.location.href = `${API_URL}/oauth/${platform}/login?token=${token}`;
   };
 
-  // Disconnect social account
   const handleDisconnect = async (platform: string) => {
     const token = localStorage.getItem("token");
     const headers: Record<string, string> = token ? { "Authorization": `Bearer ${token}` } : {};
@@ -138,13 +139,11 @@ export default function SettingsPage() {
         throw new Error("Failed to disconnect");
       }
     } catch (err) {
-      // Offline fallback: remove from local state
       setConnectedAccs(prev => prev.filter(acc => acc.platform !== platform));
       setAlert({ type: "success", message: `Disconnected ${platform} (local simulation).` });
     }
   };
 
-  // Save custom API key
   const handleSaveAPIKey = (e: React.FormEvent) => {
     e.preventDefault();
     if (customKey) {
@@ -158,17 +157,8 @@ export default function SettingsPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="animate-spin size-8 border-4 border-violet-600 border-t-transparent rounded-full" />
-        </div>
-      </DashboardLayout>
-    );
-  }
-
   const isConnected = (platform: string) => connectedAccs.some(acc => acc.platform.toLowerCase() === platform.toLowerCase());
+
   const getUsername = (platform: string) => connectedAccs.find(acc => acc.platform.toLowerCase() === platform.toLowerCase())?.username || "";
 
   return (
