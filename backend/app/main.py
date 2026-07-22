@@ -7,8 +7,14 @@ from .config import settings
 from .database.session import engine, Base
 from .api import auth, posts, oauth, analytics, media, ai, billing
 from .workers.scheduler_worker import start_scheduler, stop_scheduler
-from .services.storage_service import UPLOAD_DIR
 from .middleware.rate_limiter import RateLimiterMiddleware
+
+# On Vercel, the filesystem is read-only except for /tmp
+# We adjust UPLOAD_DIR to use /tmp if running in a Vercel environment
+if os.environ.get("VERCEL"):
+    UPLOAD_DIR = "/tmp/uploads"
+else:
+    from .services.storage_service import UPLOAD_DIR
 
 # Try to import sentry_sdk dynamically for production error telemetry
 try:
@@ -34,10 +40,12 @@ Base.metadata.create_all(bind=engine)
 async def lifespan(app: FastAPI):
     # Startup: run the scheduler in-process unless a dedicated worker
     # process handles it (RUN_SCHEDULER_IN_WEB=false in production)
-    if settings.RUN_SCHEDULER_IN_WEB:
+    # On Vercel, background tasks cannot run continuously
+    is_vercel = os.environ.get("VERCEL")
+    if settings.RUN_SCHEDULER_IN_WEB and not is_vercel:
         start_scheduler()
     yield
-    if settings.RUN_SCHEDULER_IN_WEB:
+    if settings.RUN_SCHEDULER_IN_WEB and not is_vercel:
         stop_scheduler()
 
 app = FastAPI(
@@ -97,14 +105,14 @@ if not os.path.exists(UPLOAD_DIR):
     os.makedirs(UPLOAD_DIR, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
-# Register routers under their exact non-api prefixes
-app.include_router(auth.router)
-app.include_router(media.router)
-app.include_router(ai.router)
-app.include_router(oauth.router)
-app.include_router(posts.router)
-app.include_router(analytics.router)
-app.include_router(billing.router)
+# Register routers under /api prefix for Vercel deployment compatibility
+app.include_router(auth.router, prefix="/api")
+app.include_router(media.router, prefix="/api")
+app.include_router(ai.router, prefix="/api")
+app.include_router(oauth.router, prefix="/api")
+app.include_router(posts.router, prefix="/api")
+app.include_router(analytics.router, prefix="/api")
+app.include_router(billing.router, prefix="/api")
 
 @app.get("/")
 def read_root():
