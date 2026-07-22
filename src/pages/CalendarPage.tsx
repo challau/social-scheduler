@@ -30,72 +30,68 @@ const Twitter = (props: React.SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
+const getMockPosts = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = today.getMonth();
+  return [
+    {
+      id: 101,
+      content: "Participating in the annual technology hackathon! Building future automation tools. 💻🚀",
+      status: "published",
+      media_url: "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?q=80&w=300",
+      scheduled_time: new Date(year, month, today.getDate() - 3, 14, 0).toISOString(),
+      ai_generations: [{ platform: "linkedin" }, { platform: "twitter" }]
+    },
+    {
+      id: 102,
+      content: "How content scheduling systems prevent creator burnout. Tips inside! #Marketing",
+      status: "scheduled",
+      scheduled_time: new Date(year, month, today.getDate() + 2, 10, 30).toISOString(),
+      ai_generations: [{ platform: "instagram" }, { platform: "linkedin" }]
+    },
+    {
+      id: 103,
+      content: "Habits compound. Code daily, publish consistently, build systems. #Developer",
+      status: "scheduled",
+      scheduled_time: new Date(year, month, today.getDate() + 5, 17, 15).toISOString(),
+      ai_generations: [{ platform: "twitter" }]
+    },
+    {
+      id: 104,
+      content: "Announcing SocialFlow AI official release! Automate cross-posting now.",
+      status: "scheduled",
+      scheduled_time: new Date(year, month, today.getDate() + 9, 9, 0).toISOString(),
+      ai_generations: [{ platform: "instagram" }, { platform: "linkedin" }, { platform: "twitter" }]
+    }
+  ];
+};
+
 export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [scheduledPosts, setScheduledPosts] = useState<any[]>([]);
+  // Seed mock posts instantly — no blocking spinner
+  const [scheduledPosts, setScheduledPosts] = useState<any[]>(getMockPosts());
   const [selectedPost, setSelectedPost] = useState<any | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  // Fetch posts from backend
+  // Background non-blocking fetch — updates calendar if backend is alive
   useEffect(() => {
     const fetchPosts = async () => {
       const token = localStorage.getItem("token");
       const headers: Record<string, string> = token ? { "Authorization": `Bearer ${token}` } : {};
-
       try {
-        const res = await fetch(`${API_URL}/posts`, { headers });
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        const res = await fetch(`${API_URL}/posts`, { headers, signal: controller.signal });
+        clearTimeout(timeoutId);
         const data = await res.json();
-        
         if (res.ok) {
-          // Filter only scheduled or published posts with scheduled times
           const filtered = data.filter((p: any) => p.scheduled_time);
-          setScheduledPosts(filtered);
-        } else {
-          throw new Error("Failed to fetch posts");
+          if (filtered.length > 0) setScheduledPosts(filtered);
         }
-      } catch (err) {
-        console.warn("Backend API offline. Seeding calendar with mock posts.");
-        // Seed mock posts spread out over the current month
-        const today = new Date();
-        const year = today.getFullYear();
-        const month = today.getMonth();
-
-        setScheduledPosts([
-          {
-            id: 101,
-            content: "Participating in the annual technology hackathon! Building future automation tools. 💻🚀",
-            status: "published",
-            media_url: "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?q=80&w=300",
-            scheduled_time: new Date(year, month, today.getDate() - 3, 14, 0).toISOString(),
-            ai_generations: [{ platform: "linkedin" }, { platform: "twitter" }]
-          },
-          {
-            id: 102,
-            content: "How content scheduling systems prevent creator burnout. Tips inside! #Marketing",
-            status: "scheduled",
-            scheduled_time: new Date(year, month, today.getDate() + 2, 10, 30).toISOString(),
-            ai_generations: [{ platform: "instagram" }, { platform: "linkedin" }]
-          },
-          {
-            id: 103,
-            content: "Habits compound. Code daily, publish consistently, build systems. #Developer",
-            status: "scheduled",
-            scheduled_time: new Date(year, month, today.getDate() + 5, 17, 15).toISOString(),
-            ai_generations: [{ platform: "twitter" }]
-          },
-          {
-            id: 104,
-            content: "Announcing SocialFlow AI official release! Automate cross-posting now.",
-            status: "scheduled",
-            scheduled_time: new Date(year, month, today.getDate() + 9, 9, 0).toISOString(),
-            ai_generations: [{ platform: "instagram" }, { platform: "linkedin" }, { platform: "twitter" }]
-          }
-        ]);
-      } finally {
-        setLoading(false);
+      } catch {
+        // Backend offline — mock data already shown, do nothing
       }
     };
-
     fetchPosts();
   }, []);
 
@@ -167,15 +163,6 @@ export default function CalendarPage() {
     });
   };
 
-  if (loading) {
-    return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="animate-spin size-8 border-4 border-violet-600 border-t-transparent rounded-full" />
-        </div>
-      </DashboardLayout>
-    );
-  }
 
   return (
     <DashboardLayout>

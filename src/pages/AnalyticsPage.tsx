@@ -31,17 +31,33 @@ const Twitter = (props: React.SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
+const MOCK_STATS = {
+  total_views: 4520,
+  total_likes: 852,
+  total_comments: 114,
+  total_shares: 53,
+  engagement_rate: 22.54
+};
+const MOCK_BREAKDOWN = [
+  { platform: "Instagram", posts: 5, views: 1800, color: "#E1306C" },
+  { platform: "LinkedIn", posts: 4, views: 1520, color: "#0077B5" },
+  { platform: "Twitter", posts: 3, views: 1200, color: "#1DA1F2" }
+];
+const MOCK_HISTORY = [
+  { date: "Mon", views: 240, likes: 45, comments: 5 },
+  { date: "Tue", views: 360, likes: 62, comments: 8 },
+  { date: "Wed", views: 480, likes: 85, comments: 12 },
+  { date: "Thu", views: 720, likes: 124, comments: 15 },
+  { date: "Fri", views: 890, likes: 160, comments: 20 },
+  { date: "Sat", views: 1020, likes: 195, comments: 25 },
+  { date: "Sun", views: 1250, likes: 210, comments: 30 }
+];
+
 export default function AnalyticsPage() {
-  const [stats, setStats] = useState({
-    total_views: 0,
-    total_likes: 0,
-    total_comments: 0,
-    total_shares: 0,
-    engagement_rate: 0.0
-  });
-  const [breakdown, setBreakdown] = useState<any[]>([]);
-  const [history, setHistory] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Seed mock data instantly — no blocking spinner
+  const [stats, setStats] = useState(MOCK_STATS);
+  const [breakdown, setBreakdown] = useState<any[]>(MOCK_BREAKDOWN);
+  const [history, setHistory] = useState<any[]>(MOCK_HISTORY);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -49,50 +65,28 @@ export default function AnalyticsPage() {
       const headers: Record<string, string> = token ? { "Authorization": `Bearer ${token}` } : {};
 
       try {
-        const resStats = await fetch(`${API_URL}/analytics`, { headers });
-        const dataStats = await resStats.json();
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-        const resBreakdown = await fetch(`${API_URL}/analytics/breakdown`, { headers });
-        const dataBreakdown = await resBreakdown.json();
-
-        const resHist = await fetch(`${API_URL}/analytics/history`, { headers });
-        const dataHist = await resHist.json();
+        const [resStats, resBreakdown, resHist] = await Promise.all([
+          fetch(`${API_URL}/analytics`, { headers, signal: controller.signal }),
+          fetch(`${API_URL}/analytics/breakdown`, { headers, signal: controller.signal }),
+          fetch(`${API_URL}/analytics/history`, { headers, signal: controller.signal })
+        ]);
+        clearTimeout(timeoutId);
 
         if (resStats.ok && resBreakdown.ok && resHist.ok) {
+          const [dataStats, dataBreakdown, dataHist] = await Promise.all([
+            resStats.json(), resBreakdown.json(), resHist.json()
+          ]);
           setStats(dataStats);
           setBreakdown(dataBreakdown);
           setHistory(dataHist);
-        } else {
-          throw new Error("Failed to load analytics");
         }
-      } catch (err) {
-        console.warn("Backend API offline. Using mock analytics.");
-        setStats({
-          total_views: 4520,
-          total_likes: 852,
-          total_comments: 114,
-          total_shares: 53,
-          engagement_rate: 22.54
-        });
-        setBreakdown([
-          { platform: "Instagram", posts: 5, views: 1800, color: "#E1306C" },
-          { platform: "LinkedIn", posts: 4, views: 1520, color: "#0077B5" },
-          { platform: "Twitter", posts: 3, views: 1200, color: "#1DA1F2" }
-        ]);
-        setHistory([
-          { date: "Mon", views: 240, likes: 45, comments: 5 },
-          { date: "Tue", views: 360, likes: 62, comments: 8 },
-          { date: "Wed", views: 480, likes: 85, comments: 12 },
-          { date: "Thu", views: 720, likes: 124, comments: 15 },
-          { date: "Fri", views: 890, likes: 160, comments: 20 },
-          { date: "Sat", views: 1020, likes: 195, comments: 25 },
-          { date: "Sun", views: 1250, likes: 210, comments: 30 }
-        ]);
-      } finally {
-        setLoading(false);
+      } catch {
+        // Backend offline — mock data already displayed
       }
     };
-
     fetchData();
   }, []);
 
@@ -105,15 +99,6 @@ export default function AnalyticsPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="animate-spin size-8 border-4 border-violet-600 border-t-transparent rounded-full" />
-        </div>
-      </DashboardLayout>
-    );
-  }
 
   // Draw chart paths
   const padding = 40;
