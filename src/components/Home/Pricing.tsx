@@ -5,27 +5,27 @@ const pricingPlans = [
     {
         name: "Starter",
         price: "Free",
-        period: "",
-        description: "Perfect for creators just getting started with social media automation.",
-        features: ["2 social accounts", "10 scheduled posts/month", "AI content (5 credits/mo)", "Basic dashboard"],
+        period: "forever",
+        description: "Ideal for students and creators starting out.",
+        features: ["3 social accounts (LinkedIn, X, IG)", "Unlimited scheduled posts", "ChatGPT-speed AI generation", "Visual calendar dashboard"],
         cta: "Get Started Free",
         highlight: false,
     },
     {
-        name: "Pro",
-        price: "$29",
+        name: "Pro Creator",
+        price: "$19",
         period: "/month",
-        description: "Everything you need to grow and automate your social presence.",
-        features: ["Unlimited accounts", "Unlimited scheduling", "AI content (200 credits/mo)", "Priority support"],
-        cta: "Start 14-day Free Trial",
+        description: "For active creators automating cross-platform growth.",
+        features: ["Everything in Free", "Unlimited AI generations", "1-Click 'Select All' broadcast", "Custom brand voice settings", "Priority support"],
+        cta: "Start Free Trial",
         highlight: true,
     },
     {
-        name: "Agency",
-        price: "$79",
+        name: "Agency & Teams",
+        price: "$49",
         period: "/month",
-        description: "For teams and agencies managing multiple brands at scale.",
-        features: ["Everything in Pro", "5 team members", "Unlimited AI credits", "Custom AI personas", "Dedicated support"],
+        description: "For agencies and multi-brand managers.",
+        features: ["Everything in Pro", "5 team workspaces", "Multi-user account isolation", "Custom AI personas", "Dedicated API access"],
         cta: "Contact Sales",
         highlight: false,
     },
@@ -33,46 +33,68 @@ const pricingPlans = [
 
 export default function Pricing() {
     return (
-        <section id="pricing" className="py-24 bg-white">
+        <section id="pricing" className="py-24 bg-[#0B141A] border-t border-[#202C33]">
             <div className="max-w-6xl mx-auto px-4 sm:px-6">
-                <div className="text-center mb-16">
-                    <div className="mb-6 inline-flex items-center gap-1.5 bg-red-500/10 border border-red-500/15 text-red-500 text-[11px] font-medium tracking-[0.06em] uppercase px-3.5 py-1.5 rounded-full">
-                        <CircleCheckBigIcon className="size-3" />
-                        Simple pricing
+                <div className="text-center mb-16 space-y-4">
+                    <div className="inline-flex items-center gap-1.5 bg-[#25D366]/10 border border-[#25D366]/20 text-[#25D366] text-xs font-semibold uppercase tracking-wider px-3.5 py-1.5 rounded-full">
+                        <CircleCheckBigIcon className="size-3.5" />
+                        Simple Transparent Pricing
                     </div>
-                    <h2 className="font-serif font-medium text-4xl sm:text-5xl leading-tight text-gray-900">
-                        Plans for every stage
-                        <br />
-                        <span className="text-red-400 italic">of growth</span>
+                    <h2 className="font-serif font-bold text-4xl sm:text-5xl leading-tight text-white">
+                        Plans for every stage <br />
+                        <span className="text-[#25D366]">of growth</span>
                     </h2>
-                    <p className="mt-5 text-gray-500 max-w-md mx-auto">Start free, upgrade when you're ready. Cancel anytime — no hidden fees.</p>
+                    <p className="text-[#8696A0] max-w-md mx-auto text-sm sm:text-base">
+                        Start free, upgrade when you scale. No hidden fees.
+                    </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-start">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
                     {pricingPlans.map((plan) => (
-                        <div key={plan.name} className={`rounded-2xl border p-7 flex flex-col gap-6 relative ${plan.highlight ? "bg-red-500 text-white border-red-400 shadow-2xl shadow-red-100" : "bg-white text-slate-900 border-slate-200"}`}>
-                            {plan.highlight && <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-xs font-bold px-3.5 py-1.5 rounded-full">Most Popular</div>}
-                            <div>
-                                <div className={`text-sm font-semibold mb-1 ${plan.highlight ? "text-red-100" : "text-red-500"}`}>{plan.name}</div>
-                                <div className="flex items-end gap-1">
-                                    <span className="text-4xl font-bold">{plan.price}</span>
-                                    <span className={`text-sm mb-1.5 ${plan.highlight ? "text-red-200" : "text-slate-400"}`}>{plan.period}</span>
+                        <div
+                            key={plan.name}
+                            className={`rounded-2xl border p-8 flex flex-col justify-between relative transition-all duration-300 ${
+                                plan.highlight
+                                    ? "bg-gradient-to-b from-[#075E54]/40 to-[#111B21] border-[#25D366]/50 shadow-2xl shadow-[#25D366]/10"
+                                    : "bg-[#111B21] border-[#202C33] hover:border-[#2A3942]"
+                            }`}
+                        >
+                            {plan.highlight && (
+                                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-[#075E54] to-[#25D366] text-white text-[11px] font-extrabold uppercase px-4 py-1 rounded-full shadow-lg">
+                                    Most Popular
                                 </div>
-                                <p className={`text-sm mt-2 leading-relaxed ${plan.highlight ? "text-red-100" : "text-slate-500"}`}>{plan.description}</p>
+                            )}
+
+                            <div className="space-y-6">
+                                <div>
+                                    <div className="text-sm font-bold text-[#25D366] mb-2">{plan.name}</div>
+                                    <div className="flex items-baseline gap-1">
+                                        <span className="text-4xl font-black text-white">{plan.price}</span>
+                                        <span className="text-xs text-[#8696A0]">{plan.period}</span>
+                                    </div>
+                                    <p className="text-xs text-[#8696A0] mt-3 leading-relaxed">{plan.description}</p>
+                                </div>
+
+                                <ul className="space-y-3 pt-4 border-t border-[#202C33]">
+                                    {plan.features.map((f) => (
+                                        <li key={f} className="flex items-center gap-2.5 text-xs text-[#E9EDEF]">
+                                            <div className="size-4 rounded-full bg-[#25D366]/10 border border-[#25D366]/30 flex items-center justify-center shrink-0">
+                                                <CheckIcon className="size-2.5 text-[#25D366]" />
+                                            </div>
+                                            <span>{f}</span>
+                                        </li>
+                                    ))}
+                                </ul>
                             </div>
 
-                            <ul className="space-y-2.5">
-                                {plan.features.map((f) => (
-                                    <li key={f} className="flex items-center gap-2.5 text-sm">
-                                        <div className={`size-4 rounded-full flex items-center justify-center shrink-0 ${plan.highlight ? "bg-red-400" : "bg-red-50"}`}>
-                                            <CheckIcon className={`w-2.5 h-2.5 ${plan.highlight ? "text-white" : "text-red-500"}`} />
-                                        </div>
-                                        <span className={plan.highlight ? "text-red-50" : "text-slate-600"}>{f}</span>
-                                    </li>
-                                ))}
-                            </ul>
-
-                            <Link to="/#" className={`mt-auto text-center font-semibold text-sm px-6 py-3 rounded-full ${plan.highlight ? "bg-white text-red-500 hover:bg-red-50" : "bg-red-500 text-white hover:bg-red-600"}`}>
+                            <Link
+                                to="/login"
+                                className={`mt-8 text-center font-bold text-xs py-3.5 px-6 rounded-xl transition-all ${
+                                    plan.highlight
+                                        ? "bg-gradient-to-r from-[#075E54] to-[#25D366] text-white hover:opacity-90 shadow-lg shadow-[#25D366]/20"
+                                        : "bg-[#0B141A] text-white border border-[#202C33] hover:bg-[#1C2830]"
+                                }`}
+                            >
                                 {plan.cta}
                             </Link>
                         </div>

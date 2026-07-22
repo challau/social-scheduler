@@ -1,43 +1,59 @@
-import { ArrowRightIcon, CheckCircleIcon } from "lucide-react";
+import { Sparkles, CheckCircle2, Share2, Layers } from "lucide-react";
 
 const steps = [
-    { step: "01", title: "Connect Your Accounts", description: "Link your social profiles in seconds. We support Twitter, LinkedIn, Facebook, and Instagram." },
-    { step: "02", title: "Create or Generate Content", description: "Write your own post or let our AI craft a caption and image based on your prompt." },
-    { step: "03", title: "Schedule & Publish", description: "Pick a time, select your platforms, and hit schedule. We handle publishing automatically." },
+    {
+        num: "01",
+        title: "Draft Prompt & Upload Media",
+        desc: "Type a short post topic or upload your image/video asset once into the Create Post workspace.",
+        icon: Layers
+    },
+    {
+        num: "02",
+        title: "Generate ChatGPT-Speed Copy",
+        desc: "One click triggers AI that generates distinct, high-converting copy for LinkedIn, Twitter, and Instagram.",
+        icon: Sparkles
+    },
+    {
+        num: "03",
+        title: "Select Platforms & Broadcast",
+        desc: "Click 'Select All' and hit 'Publish Now' to broadcast simultaneously across all connected accounts.",
+        icon: Share2
+    }
 ];
 
 export default function HowItWorks() {
     return (
-        <section id="how-it-works" className="py-24 bg-white">
-            <div className="max-w-4xl mx-auto px-4 sm:px-6">
-                <div className="text-center mb-16">
-                    <div className="mb-6 inline-flex items-center gap-1.5 bg-red-500/10 border border-red-500/15 text-red-500 text-[11px] font-medium tracking-[0.06em] uppercase px-3.5 py-1.5 rounded-full">
-                        <CheckCircleIcon className="size-3" />
-                        Simple setup
+        <section id="how-it-works" className="py-24 bg-[#0B141A] border-t border-[#202C33]">
+            <div className="max-w-6xl mx-auto px-4 sm:px-6">
+                <div className="text-center mb-16 space-y-4">
+                    <div className="inline-flex items-center gap-1.5 bg-[#25D366]/10 border border-[#25D366]/20 text-[#25D366] text-xs font-semibold uppercase tracking-wider px-3.5 py-1.5 rounded-full">
+                        <CheckCircle2 className="size-3.5" />
+                        Simple 3-step workflow
                     </div>
-                    <h2 className="font-serif font-medium text-4xl sm:text-5xl leading-tight text-gray-900">
-                        Up and running in <span className="text-red-400 italic">minutes</span>
+                    <h2 className="font-serif text-4xl sm:text-5xl font-bold leading-tight text-white">
+                        How SocialFlow AI <span className="text-[#25D366]">works</span>
                     </h2>
-                    <p className="mt-5 text-gray-500 max-w-lg mx-auto leading-relaxed">No complicated onboarding, no steep learning curve. Just connect, create, and grow.</p>
+                    <p className="text-[#8696A0] max-w-md mx-auto text-sm sm:text-base">
+                        Built for speed — go from raw idea to live multi-channel broadcast in under 60 seconds.
+                    </p>
                 </div>
 
-                <div className="space-y-6">
-                    {steps.map((s, i) => (
-                        <div key={s.step} className="flex gap-6 items-start">
-                            <div className="shrink-0 size-12 rounded-2xl bg-red-50 border border-red-100 flex items-center justify-center">
-                                <span className="text-sm font-medium text-red-500">{s.step}</span>
-                            </div>
-                            <div className="pt-1">
-                                <h3 className=" text-slate-900 mb-1">{s.title}</h3>
-                                <p className="text-slate-500 text-sm leading-relaxed">{s.description}</p>
-                            </div>
-                            {i < steps.length - 1 && (
-                                <div className="hidden sm:block ml-auto shrink-0 self-center">
-                                    <ArrowRightIcon className="size-4 text-slate-200" />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative">
+                    {steps.map((step) => {
+                        const Icon = step.icon;
+                        return (
+                            <div key={step.num} className="bg-[#111B21] border border-[#202C33] p-8 rounded-2xl space-y-4 relative overflow-hidden group hover:border-[#25D366]/40 transition-all">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-3xl font-black text-[#25D366]/40 group-hover:text-[#25D366] transition-colors">{step.num}</span>
+                                    <div className="size-10 rounded-xl bg-[#075E54]/30 border border-[#25D366]/20 flex items-center justify-center text-[#25D366]">
+                                        <Icon className="size-5" />
+                                    </div>
                                 </div>
-                            )}
-                        </div>
-                    ))}
+                                <h3 className="text-lg font-bold text-white">{step.title}</h3>
+                                <p className="text-xs text-[#8696A0] leading-relaxed">{step.desc}</p>
+                            </div>
+                        );
+                    })}
                 </div>
             </div>
         </section>
