@@ -169,9 +169,9 @@ export default function Dashboard() {
           </div>
           <Link 
             to="/create" 
-            className="self-start md:self-auto flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white font-medium rounded-xl text-sm transition-all duration-300 shadow-lg shadow-violet-500/10 hover:shadow-violet-500/20 active:scale-98"
+            className="self-start md:self-auto flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-[#075E54] to-[#25D366] hover:from-[#128C7E] hover:to-[#25D366] text-white font-bold rounded-xl text-sm transition-all duration-300 shadow-lg shadow-[#25D366]/20 active:scale-98"
           >
-            <Plus className="size-4.5" />
+            <Plus className="size-4.5 text-white" />
             Create Post
           </Link>
         </div>
@@ -179,10 +179,11 @@ export default function Dashboard() {
         {/* Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Total Posts */}
-          <div className="bg-slate-900/40 border border-slate-800/80 backdrop-blur-md rounded-2xl p-6 relative overflow-hidden group hover:border-slate-700/60 transition-all duration-300">
-            <div className="absolute right-4 top-4 bg-slate-800/40 border border-slate-700/20 p-3 rounded-xl">
-              <FileText className="size-5 text-violet-400" />
+          <div className="bg-[#111B21] border border-[#202C33] backdrop-blur-md rounded-2xl p-6 relative overflow-hidden group hover:border-[#25D366]/40 transition-all duration-300">
+            <div className="absolute right-4 top-4 bg-[#075E54]/30 border border-[#25D366]/30 p-3 rounded-xl">
+              <FileText className="size-5 text-[#25D366]" />
             </div>
+
             <p className="text-slate-500 text-sm font-semibold uppercase tracking-wider">Total Posts</p>
             <h3 className="text-3xl font-black mt-2 text-slate-100">{stats.total_posts}</h3>
             <p className="text-slate-400 text-xs mt-3 flex items-center gap-1">
@@ -191,37 +192,37 @@ export default function Dashboard() {
           </div>
 
           {/* Scheduled Posts */}
-          <div className="bg-slate-900/40 border border-slate-800/80 backdrop-blur-md rounded-2xl p-6 relative overflow-hidden group hover:border-slate-700/60 transition-all duration-300">
-            <div className="absolute right-4 top-4 bg-slate-800/40 border border-slate-700/20 p-3 rounded-xl">
-              <Calendar className="size-5 text-amber-400" />
+          <div className="bg-[#111B21] border border-[#202C33] backdrop-blur-md rounded-2xl p-6 relative overflow-hidden group hover:border-[#25D366]/40 transition-all duration-300">
+            <div className="absolute right-4 top-4 bg-[#075E54]/30 border border-[#25D366]/30 p-3 rounded-xl">
+              <Calendar className="size-5 text-[#25D366]" />
             </div>
             <p className="text-slate-500 text-sm font-semibold uppercase tracking-wider">Scheduled</p>
             <h3 className="text-3xl font-black mt-2 text-slate-100">{stats.scheduled_posts}</h3>
             <p className="text-slate-400 text-xs mt-3 flex items-center gap-1">
-              <span className="inline-block size-2 rounded-full bg-amber-500 animate-pulse" /> Pending publishing
+              <span className="inline-block size-2 rounded-full bg-[#25D366] animate-pulse" /> Pending publishing
             </p>
           </div>
 
           {/* Published Posts */}
-          <div className="bg-slate-900/40 border border-slate-800/80 backdrop-blur-md rounded-2xl p-6 relative overflow-hidden group hover:border-slate-700/60 transition-all duration-300">
-            <div className="absolute right-4 top-4 bg-slate-800/40 border border-slate-700/20 p-3 rounded-xl">
-              <CheckCircle2 className="size-5 text-emerald-400" />
+          <div className="bg-[#111B21] border border-[#202C33] backdrop-blur-md rounded-2xl p-6 relative overflow-hidden group hover:border-[#25D366]/40 transition-all duration-300">
+            <div className="absolute right-4 top-4 bg-[#075E54]/30 border border-[#25D366]/30 p-3 rounded-xl">
+              <CheckCircle2 className="size-5 text-[#25D366]" />
             </div>
             <p className="text-slate-500 text-sm font-semibold uppercase tracking-wider">Published</p>
             <h3 className="text-3xl font-black mt-2 text-slate-100">{stats.published_posts}</h3>
-            <p className="text-slate-400 text-xs mt-3 flex items-center gap-1">
+            <p className="text-[#25D366] text-xs mt-3 flex items-center gap-1">
               Successfully distributed
             </p>
           </div>
 
           {/* Engagement Rate */}
-          <div className="bg-slate-900/40 border border-slate-800/80 backdrop-blur-md rounded-2xl p-6 relative overflow-hidden group hover:border-slate-700/60 transition-all duration-300">
-            <div className="absolute right-4 top-4 bg-slate-800/40 border border-slate-700/20 p-3 rounded-xl">
-              <TrendingUp className="size-5 text-fuchsia-400" />
+          <div className="bg-[#111B21] border border-[#202C33] backdrop-blur-md rounded-2xl p-6 relative overflow-hidden group hover:border-[#25D366]/40 transition-all duration-300">
+            <div className="absolute right-4 top-4 bg-[#075E54]/30 border border-[#25D366]/30 p-3 rounded-xl">
+              <TrendingUp className="size-5 text-[#25D366]" />
             </div>
             <p className="text-slate-500 text-sm font-semibold uppercase tracking-wider">Engagement Rate</p>
             <h3 className="text-3xl font-black mt-2 text-slate-100">{stats.engagement_rate}%</h3>
-            <p className="text-emerald-400 text-xs mt-3 flex items-center gap-1">
+            <p className="text-[#25D366] text-xs mt-3 flex items-center gap-1">
               Avg content response rate
             </p>
           </div>
@@ -230,24 +231,24 @@ export default function Dashboard() {
         {/* Channels & Analytics Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Analytics Line Chart */}
-          <div className="lg:col-span-2 bg-slate-900/40 border border-slate-800/80 backdrop-blur-md rounded-2xl p-6 flex flex-col justify-between">
+          <div className="lg:col-span-2 bg-[#111B21] border border-[#202C33] backdrop-blur-md rounded-2xl p-6 flex flex-col justify-between">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h3 className="font-bold text-slate-200">Views & Reach Trend</h3>
-                <p className="text-xs text-slate-500 mt-0.5">Reach metric tracking over last 7 active periods.</p>
+                <h3 className="font-bold text-[#E9EDEF]">Views & Reach Trend</h3>
+                <p className="text-xs text-[#8696A0] mt-0.5">Reach metric tracking over last 7 active periods.</p>
               </div>
-              <Link to="/analytics" className="text-xs text-violet-400 flex items-center gap-1 hover:underline">
+              <Link to="/analytics" className="text-xs text-[#25D366] flex items-center gap-1 hover:underline font-semibold">
                 Full Report <ArrowUpRight className="size-3.5" />
               </Link>
             </div>
 
             {/* Sparkline chart */}
-            <div className="w-full flex justify-center py-2 bg-slate-950/20 rounded-xl border border-slate-800/30">
+            <div className="w-full flex justify-center py-2 bg-[#0B141A] rounded-xl border border-[#202C33]">
               <svg className="w-full h-[150px]" viewBox={`0 0 ${graphWidth} ${graphHeight}`}>
                 <defs>
                   <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="rgb(124, 58, 237)" stopOpacity="0.25" />
-                    <stop offset="100%" stopColor="rgb(124, 58, 237)" stopOpacity="0" />
+                    <stop offset="0%" stopColor="#25D366" stopOpacity="0.3" />
+                    <stop offset="100%" stopColor="#25D366" stopOpacity="0.0" />
                   </linearGradient>
                 </defs>
                 {/* Gridlines */}
@@ -262,6 +263,7 @@ export default function Dashboard() {
                   />
                 )}
 
+
                 {/* Line Path */}
                 {history.length > 1 && (
                   <polyline
@@ -273,8 +275,8 @@ export default function Dashboard() {
                 )}
                 
                 <linearGradient id="lineGradient" x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0%" stopColor="#7c3aed" />
-                  <stop offset="100%" stopColor="#db2777" />
+                  <stop offset="0%" stopColor="#075E54" />
+                  <stop offset="100%" stopColor="#25D366" />
                 </linearGradient>
 
                 {/* Dots on points */}
@@ -287,7 +289,7 @@ export default function Dashboard() {
                       cx={x}
                       cy={y}
                       r="4"
-                      className="fill-fuchsia-500 stroke-slate-950 stroke-2 cursor-pointer hover:r-5 transition-all"
+                      className="fill-[#25D366] stroke-[#0B141A] stroke-2 cursor-pointer hover:r-5 transition-all"
                     />
                   );
                 })}
@@ -303,22 +305,22 @@ export default function Dashboard() {
           </div>
 
           {/* Social Channels Panel */}
-          <div className="bg-slate-900/40 border border-slate-800/80 backdrop-blur-md rounded-2xl p-6 space-y-6">
+          <div className="bg-[#111B21] border border-[#202C33] backdrop-blur-md rounded-2xl p-6 space-y-6">
             <div>
-              <h3 className="font-bold text-slate-200">Connected Channels</h3>
-              <p className="text-xs text-slate-500 mt-0.5">Linked publishing endpoints.</p>
+              <h3 className="font-bold text-[#E9EDEF]">Connected Channels</h3>
+              <p className="text-xs text-[#8696A0] mt-0.5">Linked publishing endpoints.</p>
             </div>
 
             <div className="space-y-4">
               {/* Instagram */}
-              <div className="flex items-center justify-between p-3.5 bg-slate-950/20 border border-slate-800/40 rounded-xl">
+              <div className="flex items-center justify-between p-3.5 bg-[#0B141A]/60 border border-[#202C33] rounded-xl">
                 <div className="flex items-center gap-3">
                   <div className="size-9 rounded-lg bg-pink-500/10 border border-pink-500/20 flex items-center justify-center">
                     <Instagram className="size-4.5 text-pink-500" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-semibold text-slate-300">Instagram Business</h4>
-                    <p className="text-xs text-slate-500 mt-0.5">
+                    <h4 className="text-sm font-semibold text-[#E9EDEF]">Instagram Business</h4>
+                    <p className="text-xs text-[#8696A0] mt-0.5">
                       {accounts.find(a => a.platform === "instagram")?.username || "Not connected"}
                     </p>
                   </div>
@@ -327,14 +329,14 @@ export default function Dashboard() {
               </div>
 
               {/* LinkedIn */}
-              <div className="flex items-center justify-between p-3.5 bg-slate-950/20 border border-slate-800/40 rounded-xl">
+              <div className="flex items-center justify-between p-3.5 bg-[#0B141A]/60 border border-[#202C33] rounded-xl">
                 <div className="flex items-center gap-3">
                   <div className="size-9 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
                     <Linkedin className="size-4.5 text-blue-500" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-semibold text-slate-300">LinkedIn Profile</h4>
-                    <p className="text-xs text-slate-500 mt-0.5">
+                    <h4 className="text-sm font-semibold text-[#E9EDEF]">LinkedIn Profile</h4>
+                    <p className="text-xs text-[#8696A0] mt-0.5">
                       {accounts.find(a => a.platform === "linkedin")?.username || "Not connected"}
                     </p>
                   </div>
@@ -343,14 +345,14 @@ export default function Dashboard() {
               </div>
 
               {/* Twitter */}
-              <div className="flex items-center justify-between p-3.5 bg-slate-950/20 border border-slate-800/40 rounded-xl">
+              <div className="flex items-center justify-between p-3.5 bg-[#0B141A]/60 border border-[#202C33] rounded-xl">
                 <div className="flex items-center gap-3">
                   <div className="size-9 rounded-lg bg-sky-400/10 border border-sky-400/20 flex items-center justify-center">
                     <Twitter className="size-4.5 text-sky-400" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-semibold text-slate-300">Twitter/X Channel</h4>
-                    <p className="text-xs text-slate-500 mt-0.5">
+                    <h4 className="text-sm font-semibold text-[#E9EDEF]">Twitter/X Channel</h4>
+                    <p className="text-xs text-[#8696A0] mt-0.5">
                       {accounts.find(a => a.platform === "twitter")?.username || "Not connected"}
                     </p>
                   </div>
@@ -361,7 +363,7 @@ export default function Dashboard() {
 
             <Link 
               to="/settings" 
-              className="block text-center py-2.5 text-xs text-slate-400 hover:text-white border border-slate-800 hover:border-slate-700/60 hover:bg-slate-800/10 rounded-xl transition-all duration-300"
+              className="block text-center py-2.5 text-xs text-[#8696A0] hover:text-white border border-[#202C33] hover:border-[#25D366]/30 hover:bg-[#075E54]/10 rounded-xl transition-all duration-300"
             >
               Manage accounts
             </Link>
@@ -369,10 +371,10 @@ export default function Dashboard() {
         </div>
 
         {/* Recent Posts Section */}
-        <div className="bg-slate-900/40 border border-slate-800/80 backdrop-blur-md rounded-2xl p-6">
+        <div className="bg-[#111B21] border border-[#202C33] backdrop-blur-md rounded-2xl p-6">
           <div className="flex items-center justify-between mb-6">
             <h3 className="font-bold text-slate-200">Recent Post Actions</h3>
-            <Link to="/calendar" className="text-xs text-violet-400 flex items-center gap-1 hover:underline">
+            <Link to="/calendar" className="text-xs text-[#25D366] flex items-center gap-1 hover:underline font-semibold">
               View Calendar <ArrowUpRight className="size-3.5" />
             </Link>
           </div>

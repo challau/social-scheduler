@@ -60,21 +60,21 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
   return (
     <div className={`min-h-screen flex flex-col font-sans transition-colors duration-300 ${
-      isDark ? "bg-[#090D16] text-slate-100" : "bg-[#F8FAFC] text-slate-900"
+      isDark ? "bg-[#0B141A] text-[#E9EDEF]" : "bg-[#F8FAFC] text-slate-900"
     }`}>
       {/* Horizontal Top Navigation Header */}
       <header className={`sticky top-0 z-50 backdrop-blur-xl border-b transition-colors duration-300 ${
-        isDark ? "bg-[#111827]/90 border-slate-800/80" : "bg-white/90 border-slate-200"
+        isDark ? "bg-[#111B21]/90 border-[#202C33]" : "bg-white/90 border-slate-200"
       }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
           
-          {/* Logo & Brand matching #pricing branding */}
+          {/* Logo & Brand in Emerald Green & Teal */}
           <Link to="/" className="flex items-center gap-2.5 shrink-0">
-            <div className="bg-gradient-to-tr from-red-600 to-red-500 p-2 rounded-xl shadow-lg shadow-red-500/20">
+            <div className="bg-gradient-to-tr from-[#075E54] to-[#25D366] p-2 rounded-xl shadow-lg shadow-[#25D366]/20">
               <Sparkles className="size-4.5 text-white" />
             </div>
             <span className={`font-extrabold text-lg bg-gradient-to-r ${
-              isDark ? "from-white via-slate-200 to-red-300" : "from-slate-900 via-slate-800 to-red-600"
+              isDark ? "from-white via-emerald-100 to-[#25D366]" : "from-slate-900 via-slate-800 to-[#075E54]"
             } bg-clip-text text-transparent tracking-tight`}>
               SocialFlow AI
             </span>
@@ -82,7 +82,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
           {/* Desktop Horizontal Navigation Links */}
           <nav className={`hidden md:flex items-center gap-1.5 p-1.5 rounded-2xl border transition-colors ${
-            isDark ? "bg-slate-950/60 border-slate-800/80" : "bg-slate-100 border-slate-200"
+            isDark ? "bg-[#0B141A]/80 border-[#202C33]" : "bg-slate-100 border-slate-200"
           }`}>
             {navigation.map((item) => {
               const isActive = location.pathname === item.href;
@@ -94,11 +94,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                   className={`
                     flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all duration-200
                     ${isActive 
-                      ? "bg-gradient-to-r from-red-600 to-red-500 text-white shadow-md shadow-red-500/20" 
-                      : isDark ? "text-slate-400 hover:text-slate-100 hover:bg-slate-900" : "text-slate-600 hover:text-slate-900 hover:bg-white"}
+                      ? "bg-gradient-to-r from-[#075E54] to-[#128C7E] text-[#25D366] border border-[#25D366]/30 shadow-md shadow-[#25D366]/10" 
+                      : isDark ? "text-[#8696A0] hover:text-white hover:bg-[#111B21]" : "text-slate-600 hover:text-slate-900 hover:bg-white"}
                   `}
                 >
-                  <Icon className="size-4" />
+                  <Icon className={`size-4 ${isActive ? "text-[#25D366]" : ""}`} />
                   {item.name}
                 </Link>
               );
@@ -112,7 +112,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               onClick={toggleTheme}
               className={`p-2.5 rounded-xl border transition-all duration-200 flex items-center justify-center ${
                 isDark 
-                  ? "bg-slate-900 border-slate-800 text-amber-400 hover:bg-slate-800" 
+                  ? "bg-[#111B21] border-[#202C33] text-amber-400 hover:bg-[#1C2830]" 
                   : "bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200"
               }`}
               title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
@@ -122,14 +122,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
             {/* Profile pill */}
             <div className={`flex items-center gap-2.5 border px-3 py-1.5 rounded-xl transition-colors ${
-              isDark ? "bg-slate-950/60 border-slate-800" : "bg-slate-100 border-slate-200"
+              isDark ? "bg-[#0B141A] border-[#202C33]" : "bg-slate-100 border-slate-200"
             }`}>
-              <div className="size-7 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500">
+              <div className="size-7 rounded-full bg-[#075E54]/30 border border-[#25D366]/30 flex items-center justify-center text-[#25D366]">
                 <User className="size-3.5" />
               </div>
               <div className="text-left">
-                <p className={`text-xs font-semibold leading-tight ${isDark ? "text-slate-200" : "text-slate-800"}`}>{user.name}</p>
-                <p className={`text-[10px] leading-tight ${isDark ? "text-slate-500" : "text-slate-500"}`}>{user.email}</p>
+                <p className={`text-xs font-semibold leading-tight ${isDark ? "text-white" : "text-slate-800"}`}>{user.name}</p>
+                <p className={`text-[10px] leading-tight ${isDark ? "text-[#8696A0]" : "text-slate-500"}`}>{user.email}</p>
               </div>
             </div>
 
@@ -137,7 +137,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               onClick={handleLogout}
               className={`p-2.5 rounded-xl border transition-all duration-200 flex items-center justify-center ${
                 isDark 
-                  ? "bg-slate-900 border-slate-800 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10" 
+                  ? "bg-[#111B21] border-[#202C33] text-[#8696A0] hover:text-rose-400 hover:bg-rose-500/10" 
                   : "bg-white border-slate-200 text-slate-500 hover:text-rose-600 hover:bg-rose-50"
               }`}
               title="Logout"
@@ -145,6 +145,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               <LogOut className="size-4" />
             </button>
           </div>
+
 
           {/* Mobile Menu & Theme Toggle */}
           <div className="flex md:hidden items-center gap-2">
@@ -184,7 +185,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                     className={`
                       flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all
                       ${isActive 
-                        ? "bg-red-500 text-white" 
+                        ? "bg-gradient-to-r from-[#075E54] to-[#128C7E] text-[#25D366] border border-[#25D366]/30" 
                         : isDark ? "text-slate-400 hover:bg-slate-800" : "text-slate-600 hover:bg-slate-100"}
                     `}
                   >
@@ -197,7 +198,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
             <div className={`pt-3 border-t flex items-center justify-between ${isDark ? "border-slate-800" : "border-slate-200"}`}>
               <div className="flex items-center gap-2.5">
-                <div className="size-7 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500">
+                <div className="size-7 rounded-full bg-[#075E54]/30 border border-[#25D366]/30 flex items-center justify-center text-[#25D366]">
                   <User className="size-3.5" />
                 </div>
                 <div>
